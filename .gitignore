@@ -1,0 +1,10 @@
+# Clangd cache
+.cache/
+
+# Build files
+build/
+install/
+log/
+
+# Compile commands
+compile_commands.json
