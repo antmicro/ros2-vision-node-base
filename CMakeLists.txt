@@ -8,6 +8,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(cvnode_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -29,5 +30,7 @@ if(BUILD_TESTING)
         "src"
     )
 endif()
+
+ament_python_install_package(${PROJECT_NAME})
 
 ament_package()
