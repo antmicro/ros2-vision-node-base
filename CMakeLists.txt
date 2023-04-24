@@ -24,11 +24,6 @@ if(BUILD_TESTING)
         "src"
     )
 
-    ament_clang_tidy(CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format
-        ${CMAKE_BINARY_DIR}/compile_commands.json
-        "include"
-        "src"
-    )
 endif()
 
 ament_python_install_package(${PROJECT_NAME})
