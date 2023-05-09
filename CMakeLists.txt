@@ -11,7 +11,6 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(cvnode_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_srvs REQUIRED)
 
 include_directories(include)
 
@@ -24,7 +23,33 @@ if(BUILD_TESTING)
         "src"
     )
 
+    ament_clang_tidy(CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format
+       ${CMAKE_BINARY_DIR}/compile_commands.json
+       "include"
+       "src"
+    )
+
 endif()
+
+#############
+
+add_library(basecvnode SHARED
+    src/cvnode_base.cpp
+)
+
+ament_target_dependencies(basecvnode
+    cvnode_msgs
+    rclcpp
+)
+
+#############
+
+install(TARGETS
+    basecvnode
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
 
 ament_python_install_package(${PROJECT_NAME})
 

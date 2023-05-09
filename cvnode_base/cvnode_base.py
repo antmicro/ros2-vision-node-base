@@ -1,29 +1,12 @@
-from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
-
-from cvnode_msgs.srv import RegisterCVNode, UnregisterCVNode
+from cvnode_msgs.srv import ManageCVNode, RuntimeProtocolSrv
 
 from rclpy.node import Node
 
-from std_srvs.srv import Trigger
 
+class BaseCVNode(Node):
+    """Base class for tested computer vision node."""
 
-T = TypeVar('T')
-T.Request = TypeVar('T.Request')
-T.Response = TypeVar('T.Response')
-
-
-class BaseCVNode(Node, ABC, Generic[T]):
-    """
-    Base class for tested computer vision node.
-
-    Notes
-    -----
-    Generic[T] is used to specify the type of the process service.
-
-    """
-
-    def __init__(self, node_name: str, srv_type: Generic[T]):
+    def __init__(self, node_name: str):
         """
         Initializes the node.
 
@@ -31,69 +14,50 @@ class BaseCVNode(Node, ABC, Generic[T]):
         ----------
         node_name : str
             Name of the node.
-        srv_type : Generic[T]
-            Type of the process service.
 
         """
-        self._T = srv_type
+        # Service client for node management
+        self._manage_node_client = None
 
-        # Service clients for node registration and unregistration
-        self._register_client, self._unregister_client = None, None
-
-        # Services responsible for node preparation and data processing
-        self._prepare_service, self._process_service = None, None
-
-        # Service responsible for node cleanup
-        self._cleanup_service = None
+        # Service responsible for communication with the CVNodeManager
+        self._communication_service = None
 
         super().__init__(node_name)
 
-    def registerNode(self, register_service_name: str,
-                     unregister_service: str):
+    def registerNode(self, manage_service_name: str):
         """
-        Registers the node with the register service.
+        Registers the node with the manage service.
 
         Parameters
         ----------
-        register_service_name : str
-            Name of the register service.
-        unregister_service : str
-            Name of the unregister service.
+        manage_service_name : str
+            Name of the service for nodes management.
 
         """
-        _register_client = self.create_client(RegisterCVNode,
-                                              register_service_name)
-
-        if not _register_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().error('Register service not available')
-            return
-
-        if self._unregister_client:
+        if self._manage_node_client:
             self._unregisterNode()
 
-        prepare_service_name = self.get_name() + '_prepare'
-        process_service_name = self.get_name() + '_process'
-        cleanup_service_name = self.get_name() + '_cleanup'
+        self._manage_node_client = self.create_client(ManageCVNode,
+                                                      manage_service_name)
+
+        if not self._manage_node_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().error('Node manage service not available')
+            return
+
+        communication_service_name = f'{self.get_name()}/communication'
 
         # Initialize services
-        self._prepare_service = self.create_service(Trigger,
-                                                    prepare_service_name,
-                                                    self._prepareCallback)
+        self._communication_service = self.create_service(
+            RuntimeProtocolSrv,
+            communication_service_name,
+            self._communicationCallback
+        )
 
-        self._process_service = self.create_service(self._T,
-                                                    process_service_name,
-                                                    self._processCallback)
-
-        self._cleanup_service = self.create_service(Trigger,
-                                                    cleanup_service_name,
-                                                    self._cleanupCallback)
-
-        # Create request for register service
-        request = RegisterCVNode.Request()
+        # Create request for manage service
+        request = ManageCVNode.Request()
+        request.type = request.REGISTER
         request.node_name = self.get_name()
-        request.prepare_service_name = prepare_service_name
-        request.process_service_name = process_service_name
-        request.cleanup_service_name = cleanup_service_name
+        request.srv_name = communication_service_name
 
         def register_callback(future):
             response = future.result()
@@ -106,90 +70,47 @@ class BaseCVNode(Node, ABC, Generic[T]):
                         {response.message}')
                 return
 
-            self.get_logger().info(f'Register service call succeeded: \
-                    {response.message}')
-            self._unregister_client = self.create_client(UnregisterCVNode,
-                                                         unregister_service)
+            self.get_logger().info('Register service call succeeded')
             return
 
-        future = _register_client.call_async(request)
+        future = self._manage_node_client.call_async(request)
         future.add_done_callback(register_callback)
 
     def destroy_node(self):
         """Unregisters the node with unregister service and destroys it."""
-        if self._unregister_client:
+        if self._manage_node_client:
             self._unregisterNode()
         super().destroy_node()
 
     def _unregisterNode(self):
         """Unregisters the node with the unregister service."""
-        request = UnregisterCVNode.Request()
+        request = ManageCVNode.Request()
+        request.type = request.UNREGISTER
         request.node_name = self.get_name()
-        self._unregister_client.call_async(request)
-        self._unregister_client = None
-        self._register_client = None
 
-    @abstractmethod
-    def _prepareCallback(self, request: Trigger.Request,
-                         response: Trigger.Response) -> Trigger.Response:
+        self._manage_node_client.call_async(request)
+        self._manage_node_client = None
+
+    def _communicationCallback(self, request: RuntimeProtocolSrv.Request,
+                               response: RuntimeProtocolSrv.Response
+                               ) -> RuntimeProtocolSrv.Response:
         """
-        Prepares the node for computer vision processing.
+        Callback for the communication service.
 
-        Allocates resources of the node and prepares for processing.
+        Responsible for handling the communication message type and invoking
+        the appropriate method.
 
         Parameters
         ----------
-        request : std_srvs.srv.Trigger.Request
-            Request for the prepare service.
-        response : std_srvs.srv.Trigger.Response
-            Response for the prepare service.
+        request : RuntimeProtocolSrv.Request
+            Request for the communication service.
+        response : RuntimeProtocolSrv.Response
+            Processed response for the communication service client.
 
         Returns
         -------
-        std_srvs.srv.Trigger.Response:
-            Response from the prepare service.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _processCallback(self, request: T.Request,
-                         response: T.Response) -> T.Response:
-        """
-        Processes the data with computer vision algorithms.
-
-        Parameters
-        ----------
-        request : T.Request
-            Request for the process service.
-        response : T.Response
-            Response for the process service.
-
-        Returns
-        -------
-        T.Response:
-            Response from the process service.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _cleanupCallback(self, request: Trigger.Request,
-                         response: Trigger.Response) -> Trigger.Response:
-        """
-        Deallocates resources of the node.
-
-        Parameters
-        ----------
-        request : std_srvs.srv.Trigger.Request
-            Request for the cleanup service.
-        response : std_srvs.srv.Trigger.Response
-            Response for the cleanup service.
-
-        Returns
-        -------
-        std_srvs.srv.Trigger.Response:
-            Response from the cleanup service.
+        RuntimeProtocolSrv.Response
+            Processed response for the communication service client.
 
         """
         raise NotImplementedError
