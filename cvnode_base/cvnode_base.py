@@ -1,6 +1,9 @@
 from cvnode_msgs.srv import ManageCVNode, RuntimeProtocolSrv
+from cvnode_msgs.msg import SegmentationMsg
+from sensor_msgs.msg import Image
 
 from rclpy.node import Node
+from typing import List, Any
 
 
 class BaseCVNode(Node):
@@ -8,13 +11,12 @@ class BaseCVNode(Node):
 
     def __init__(self, node_name: str):
         """
-        Initializes the node.
+        Initialize the node.
 
         Parameters
         ----------
         node_name : str
             Name of the node.
-
         """
         # Service client for node management
         self._manage_node_client = None
@@ -26,13 +28,12 @@ class BaseCVNode(Node):
 
     def registerNode(self, manage_service_name: str):
         """
-        Registers the node with the manage service.
+        Register node with the manage service.
 
         Parameters
         ----------
         manage_service_name : str
             Name of the service for nodes management.
-
         """
         if self._manage_node_client:
             self._unregisterNode()
@@ -77,13 +78,72 @@ class BaseCVNode(Node):
         future.add_done_callback(register_callback)
 
     def destroy_node(self):
-        """Unregisters the node with unregister service and destroys it."""
+        """Unregister node with the unregister service and destroys it."""
         if self._manage_node_client:
             self._unregisterNode()
         super().destroy_node()
 
+    def prepare(self) -> bool:
+        """
+        Prepare node and model for inference.
+
+        Returns
+        -------
+        bool :
+            True if preparation was successful, False otherwise.
+        """
+        raise NotImplementedError
+
+    def preprocess(self, X: List[Image]) -> List[Any]:
+        """
+        Preprocess input data.
+
+        Parameters
+        ----------
+        X : List[Image]
+            List of input image messages.
+
+        Returns
+        -------
+        List[Any] :
+            Preprocessed data.
+        """
+        raise NotImplementedError
+
+    def predict(self, X: List[Any]) -> List[Any]:
+        """
+        Run inference on the input data.
+
+        Parameters
+        ----------
+        X : List[Any]
+            Input data.
+
+        Returns
+        -------
+        List[Any] :
+            Model predictions.
+        """
+        raise NotImplementedError
+
+    def postprocess(self, X: List[Any]) -> List[SegmentationMsg]:
+        """
+        Postprocess model predictions.
+
+        Parameters
+        ----------
+        X : List[Any]
+            Model predictions.
+
+        Returns
+        -------
+        List[SegmentationMsg] :
+            List of postprocessed segmentation messages.
+        """
+        raise NotImplementedError
+
     def _unregisterNode(self):
-        """Unregisters the node with the unregister service."""
+        """Unregister node with the unregister service."""
         request = ManageCVNode.Request()
         request.type = request.UNREGISTER
         request.node_name = self.get_name()
