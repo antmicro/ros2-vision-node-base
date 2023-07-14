@@ -52,9 +52,10 @@ void BaseCVNode::registerNode(const std::string &manage_node_name)
         std::bind(&BaseCVNode::communication_callback, this, std::placeholders::_1, std::placeholders::_2));
 
     // Send the request
-    manage_client->async_send_request(request,
-                                      [this](const rclcpp::Client<cvnode_msgs::srv::ManageCVNode>::SharedFuture future)
-                                      { register_callback(future); });
+    manage_client->async_send_request(
+        request,
+        [this](const rclcpp::Client<cvnode_msgs::srv::ManageCVNode>::SharedFuture future)
+        { register_callback(future); });
 }
 
 void BaseCVNode::unregisterNode()
