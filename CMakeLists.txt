@@ -9,8 +9,13 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
-find_package(cvnode_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(cvnode_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Torch REQUIRED)
+find_package(TorchVision REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 include_directories(include)
 
@@ -39,6 +44,7 @@ add_library(basecvnode SHARED
 
 ament_target_dependencies(basecvnode
     cvnode_msgs
+    sensor_msgs
     rclcpp
 )
 
