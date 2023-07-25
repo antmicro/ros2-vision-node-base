@@ -1,5 +1,8 @@
 #include <cvnode_base/nodes/mask_rcnn_torchscript.hpp>
 #include <cvnode_base/utils/utils.hpp>
+#include <cvnode_msgs/msg/box_msg.hpp>
+#include <cvnode_msgs/msg/mask_msg.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <c10/cuda/CUDAStream.h>
 #include <torch/csrc/autograd/grad_mode.h>
@@ -76,7 +79,6 @@ std::vector<cvnode_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess(
         output.boxes.select(1, 2).div_(width);
         output.boxes.select(1, 3).div_(height);
         msg.frame = *frames.at(i).get();
-        msg.num_dets = output.num_instances();
         std::transform(
             output.classes.data_ptr<int64_t>(),
             output.classes.data_ptr<int64_t>() + output.classes.numel(),
@@ -85,9 +87,26 @@ std::vector<cvnode_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess(
         msg.scores = std::vector<float>(
             output.scores.data_ptr<float>(),
             output.scores.data_ptr<float>() + output.scores.numel());
-        msg.boxes =
-            std::vector<float>(output.boxes.data_ptr<float>(), output.boxes.data_ptr<float>() + output.boxes.numel());
-        msg.masks = std::vector<uint8_t>(masks.data_ptr<uint8_t>(), masks.data_ptr<uint8_t>() + masks.numel());
+        for (int64_t j = 0; j < output.boxes.size(0); j++)
+        {
+            cvnode_msgs::msg::BoxMsg box;
+            box.xmin = output.boxes.select(0, j).select(0, 0).item<float>();
+            box.ymin = output.boxes.select(0, j).select(0, 1).item<float>();
+            box.xmax = output.boxes.select(0, j).select(0, 2).item<float>();
+            box.ymax = output.boxes.select(0, j).select(0, 3).item<float>();
+            msg.boxes.push_back(box);
+        }
+        for (size_t j = 0; j < output.masks.size(0); j++)
+        {
+            cvnode_msgs::msg::MaskMsg mask;
+            mask.dimension = std::vector<int64_t>{output.masks.select(0, j).size(1), output.masks.select(0, j).size(2)};
+            std::transform(
+                output.masks.select(0, j).data_ptr<float>(),
+                output.masks.select(0, j).data_ptr<float>() + output.masks.select(0, j).numel(),
+                std::back_inserter(mask.data),
+                [](float f) { return static_cast<uint8_t>(f * 255); });
+            msg.masks.push_back(mask);
+        }
         segmentations.push_back(msg);
     }
     return segmentations;
