@@ -1,11 +1,12 @@
 #pragma once
 
 #include <cvnode_base/cvnode_base.hpp>
-#include <cvnode_msgs/msg/segmentation_msg.hpp>
+#include <kenning_computer_vision_msgs/msg/segmentation_msg.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
 #include <c10/core/Device.h>
 #include <c10/cuda/CUDAStream.h>
+#include <opencv2/opencv.hpp>
 #include <torch/script.h>
 
 namespace cvnode_base
@@ -29,6 +30,18 @@ struct MaskRCNNOutputs
 class MaskRCNNTorchScript : public BaseCVNode
 {
 private:
+    /**
+     * Paste masks to the ROI of the image.
+     *
+     * @param mask Mask to paste to the image.
+     * @param box Bounding box of the ROI.
+     * @param height Height of the image.
+     * @param width Width of the image.
+     *
+     * @return Pasted mask.
+     */
+    cv::Mat paste_mask(const at::Tensor &mask, const at::Tensor &box, const int height, const int width);
+
     std::string script_path;                                ///< Path to TorchScript file
     torch::jit::script::Module model;                       ///< TorchScript model
     c10::Device device = c10::Device(c10::DeviceType::CPU); ///< Device to run inference on
@@ -107,7 +120,7 @@ public:
      *
      * @return Vector of instance segmentation results.
      */
-    std::vector<cvnode_msgs::msg::SegmentationMsg> postprocess() override;
+    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> postprocess() override;
 
     /**
      * Cleanup allocated model resources.
