@@ -3,10 +3,11 @@
 from cvnode_base.cvnode_base import BaseCVNode
 from detectron2 import model_zoo
 from detectron2.config import get_cfg
+from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.modeling import build_model
 from typing import List, Dict
 
-from cvnode_msgs.msg import SegmentationMsg
+from cvnode_msgs.msg import SegmentationMsg, MaskMsg, BoxMsg
 from sensor_msgs.msg import Image
 
 import cv2
@@ -39,18 +40,11 @@ class MaskRCNNDetectronNode(BaseCVNode):
                'scissors', 'teddy bear', 'hair drier', 'toothbrush',
                )
 
-    def __init__(self,
-                 node_name: str
-                 ):
+    def __init__(self):
         """
         Initialize the MaskRCNN node.
-
-        Parameters
-        ----------
-        node_name : str
-            Name of the node.
         """
-        super().__init__(node_name=node_name)
+        super().__init__(node_name="mask_rcnn_detectron_node")
 
     def prepare(self) -> bool:
         """
@@ -64,14 +58,16 @@ class MaskRCNNDetectronNode(BaseCVNode):
         self.cfg = get_cfg()
         self.cfg.merge_from_file(model_zoo.get_config_file(
             'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'))
-        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
         self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
             'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml')
-        self.model = build_model(self.cfg)
+        self.model = build_model(self.cfg.clone())
         self.model.eval()
+        checkpointer = DetectionCheckpointer(self.model)
+        checkpointer.load(self.cfg.MODEL.WEIGHTS)
         self.aug = T.ResizeShortestEdge(
             [self.cfg.INPUT.MIN_SIZE_TEST, self.cfg.INPUT.MIN_SIZE_TEST],
             self.cfg.INPUT.MAX_SIZE_TEST)
+        return True
 
     def preprocess(self, X: List[Image]) -> List[Dict]:
         """
@@ -88,10 +84,13 @@ class MaskRCNNDetectronNode(BaseCVNode):
             Preprocessed data compatible with the model.
         """
         Y = []
+        self.frames = []
         for msg in X:
             img = self.convert_image_format(msg.data, msg.encoding)
+            self.frames.append(msg)
             height = msg.height
             width = msg.width
+            img = np.reshape(img, (height, width, -1))
             augmented = self.aug.get_transform(img).apply_image(img)
             augmented = torch.as_tensor(
                 augmented.astype('float32').transpose(2, 0, 1))
@@ -129,24 +128,31 @@ class MaskRCNNDetectronNode(BaseCVNode):
             Postprocessed model predictions in the form of SegmentationMsg.
         """
         X = []
-        for prediction in Y:
+        for i, prediction in enumerate(Y):
             msg = SegmentationMsg()
-            msg.frame = prediction['frame']
+            msg._frame = self.frames[i]
             prediction = prediction['instances']
-            scores = prediction.scores.cpu().numpy()
-            keep = np.where(scores > self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST
-                            )[0]
+            scores = prediction.scores.cpu().detach().numpy()
 
-            scores = scores[keep]
-            masks = prediction.pred_masks.cpu().numpy()[keep]
-            boxes = prediction.pred_boxes.tensor.cpu().numpy()[keep]
-            labels = prediction.pred_classes.cpu().numpy()[keep].tolist()
+            for mask_np in prediction.pred_masks.cpu().detach().numpy():
+                mask = MaskMsg()
+                mask._dimension = [mask_np.shape[0], mask_np.shape[1]]
+                mask._data = mask_np.flatten().astype('uint8')
+                msg._masks.append(mask)
 
-            msg.scores = scores
-            msg.masks = masks.flatten()
-            msg.boxes = boxes.flatten()
-            msg.classes = [self.classes[x] for x in labels]
-            msg.num_dets = len(labels)
+            for box_np in prediction.pred_boxes.tensor.cpu(
+                    ).detach().numpy():
+                box = BoxMsg()
+                box._xmin = float(box_np[0] / prediction.image_size[1])
+                box._ymin = float(box_np[1] / prediction.image_size[0])
+                box._xmax = float(box_np[2] / prediction.image_size[1])
+                box._ymax = float(box_np[3] / prediction.image_size[0])
+                msg._boxes.append(box)
+
+            labels = prediction.pred_classes.cpu().detach().numpy()
+
+            msg._scores = scores
+            msg._classes = [self.classes[x] for x in labels]
             X.append(msg)
         return X
 
@@ -182,7 +188,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
             Image in BGR format.
         """
         if (encoding in ["bgr8", "8UC3"]):
-            return image
+            return np.asarray(image, dtype=np.uint8)
         elif (encoding == "rgb8"):
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         elif (encoding in ["mono8", "8UC1"]):
@@ -191,4 +197,3 @@ class MaskRCNNDetectronNode(BaseCVNode):
             image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
         elif (encoding == "rgba8"):
             image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
-        return image
