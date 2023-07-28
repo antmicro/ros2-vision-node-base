@@ -10,7 +10,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(cvnode_msgs REQUIRED)
+find_package(kenning_computer_vision_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Torch REQUIRED)
@@ -43,7 +43,7 @@ add_library(basecvnode SHARED
 )
 
 ament_target_dependencies(basecvnode
-    cvnode_msgs
+    kenning_computer_vision_msgs
     sensor_msgs
     rclcpp
 )

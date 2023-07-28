@@ -1,23 +1,23 @@
 """ROS2 node for MaskRCNN inference using Detectron2 framework."""
-
-from cvnode_base.cvnode_base import BaseCVNode
-from detectron2 import model_zoo
-from detectron2.config import get_cfg
-from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.modeling import build_model
-from typing import List, Dict
-
-from cvnode_msgs.msg import SegmentationMsg, MaskMsg, BoxMsg
-from sensor_msgs.msg import Image
+from typing import Dict, List
 
 import cv2
 import detectron2.data.transforms as T
 import numpy as np
 import torch
+from detectron2 import model_zoo
+from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.config import get_cfg
+from detectron2.modeling import build_model
+from kenning_computer_vision_msgs.msg import BoxMsg, MaskMsg, SegmentationMsg
+from sensor_msgs.msg import Image
+
+from cvnode_base.cvnode_base import BaseCVNode
 
 
 class MaskRCNNDetectronNode(BaseCVNode):
     """The MaskRCNN ROS2 node implemented using Detectron2 framework."""
+
     classes = ('person', 'bicycle', 'car', 'motorcycle',
                'airplane', 'bus', 'train', 'truck',
                'boat', 'traffic light', 'fire hydrant', 'stop sign',
@@ -41,10 +41,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
                )
 
     def __init__(self):
-        """
-        Initialize the MaskRCNN node.
-        """
-        super().__init__(node_name="mask_rcnn_detectron_node")
+        """Initialize MaskRCNN node."""
+        super().__init__(node_name='mask_rcnn_detectron_node')
 
     def prepare(self) -> bool:
         """
@@ -140,8 +138,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
                 mask._data = mask_np.flatten().astype('uint8')
                 msg._masks.append(mask)
 
-            for box_np in prediction.pred_boxes.tensor.cpu(
-                    ).detach().numpy():
+            for box_np in prediction.pred_boxes.tensor.cpu().detach().numpy():
                 box = BoxMsg()
                 box._xmin = float(box_np[0] / prediction.image_size[1])
                 box._ymin = float(box_np[1] / prediction.image_size[0])
@@ -157,9 +154,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
         return X
 
     def cleanup(self):
-        """
-        Cleanup allocated resources.
-        """
+        """Cleanup allocated resources."""
         if (self.model):
             del self.model
             self.model = None
@@ -187,13 +182,13 @@ class MaskRCNNDetectronNode(BaseCVNode):
         np.ndarray :
             Image in BGR format.
         """
-        if (encoding in ["bgr8", "8UC3"]):
+        if (encoding in ['bgr8', '8UC3']):
             return np.asarray(image, dtype=np.uint8)
-        elif (encoding == "rgb8"):
+        elif (encoding == 'rgb8'):
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        elif (encoding in ["mono8", "8UC1"]):
+        elif (encoding in ['mono8', '8UC1']):
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        elif (encoding in ["bgra8", "8UC4"]):
+        elif (encoding in ['bgra8', '8UC4']):
             image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-        elif (encoding == "rgba8"):
+        elif (encoding == 'rgba8'):
             image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)

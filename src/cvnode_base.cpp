@@ -3,7 +3,8 @@
 namespace cvnode_base
 {
 
-void BaseCVNode::register_callback(const rclcpp::Client<cvnode_msgs::srv::ManageCVNode>::SharedFuture future)
+void BaseCVNode::register_callback(
+    const rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedFuture future)
 {
 
     auto result = future.get();
@@ -31,7 +32,7 @@ void BaseCVNode::registerNode(const std::string &manage_node_name)
     }
 
     // Create a service client to manage the node
-    manage_client = create_client<cvnode_msgs::srv::ManageCVNode>(manage_node_name);
+    manage_client = create_client<kenning_computer_vision_msgs::srv::ManageCVNode>(manage_node_name);
 
     // Check if the service is available
     if (!manage_client->wait_for_service(std::chrono::seconds(1)))
@@ -41,20 +42,20 @@ void BaseCVNode::registerNode(const std::string &manage_node_name)
     }
 
     // Create a request
-    auto request = std::make_shared<cvnode_msgs::srv::ManageCVNode::Request>();
+    auto request = std::make_shared<kenning_computer_vision_msgs::srv::ManageCVNode::Request>();
     request->type = request->REGISTER;
     request->node_name = std::string(get_name());
     request->srv_name = std::string(get_name()) + "/communication";
 
     // Create communication service
-    communication_service = create_service<cvnode_msgs::srv::RuntimeProtocolSrv>(
+    communication_service = create_service<kenning_computer_vision_msgs::srv::RuntimeProtocolSrv>(
         request->srv_name,
         std::bind(&BaseCVNode::communication_callback, this, std::placeholders::_1, std::placeholders::_2));
 
     // Send the request
     manage_client->async_send_request(
         request,
-        [this](const rclcpp::Client<cvnode_msgs::srv::ManageCVNode>::SharedFuture future)
+        [this](const rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedFuture future)
         { register_callback(future); });
 }
 
@@ -66,7 +67,7 @@ void BaseCVNode::unregisterNode()
         return;
     }
 
-    auto request = std::make_shared<cvnode_msgs::srv::ManageCVNode::Request>();
+    auto request = std::make_shared<kenning_computer_vision_msgs::srv::ManageCVNode::Request>();
     request->type = request->UNREGISTER;
     request->node_name = std::string(get_name());
     manage_client->async_send_request(request);

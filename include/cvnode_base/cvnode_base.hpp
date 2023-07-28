@@ -4,9 +4,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 
-#include <cvnode_msgs/msg/segmentation_msg.hpp>
-#include <cvnode_msgs/srv/manage_cv_node.hpp>
-#include <cvnode_msgs/srv/runtime_protocol_srv.hpp>
+#include <kenning_computer_vision_msgs/msg/segmentation_msg.hpp>
+#include <kenning_computer_vision_msgs/srv/manage_cv_node.hpp>
+#include <kenning_computer_vision_msgs/srv/runtime_protocol_srv.hpp>
 
 namespace cvnode_base
 {
@@ -22,7 +22,7 @@ private:
      *
      * @param future Future of the service.
      */
-    void register_callback(const rclcpp::Client<cvnode_msgs::srv::ManageCVNode>::SharedFuture future);
+    void register_callback(const rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedFuture future);
 
     /**
      * Callback for communication service.
@@ -32,8 +32,8 @@ private:
      * @param response Response of the service.
      */
     virtual void communication_callback(
-        const cvnode_msgs::srv::RuntimeProtocolSrv::Request::SharedPtr request,
-        cvnode_msgs::srv::RuntimeProtocolSrv::Response::SharedPtr response) = 0;
+        const kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Request::SharedPtr request,
+        kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Response::SharedPtr response) = 0;
 
     /**
      * Unregister node using the node management service.
@@ -41,10 +41,10 @@ private:
     void unregisterNode();
 
     /// Client to manage the BaseCVNode.
-    rclcpp::Client<cvnode_msgs::srv::ManageCVNode>::SharedPtr manage_client;
+    rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedPtr manage_client;
 
     /// Communication service.
-    rclcpp::Service<cvnode_msgs::srv::RuntimeProtocolSrv>::SharedPtr communication_service;
+    rclcpp::Service<kenning_computer_vision_msgs::srv::RuntimeProtocolSrv>::SharedPtr communication_service;
 
 public:
     /**
@@ -87,7 +87,7 @@ public:
      *
      * @return Vector of instance segmentation results.
      */
-    virtual std::vector<cvnode_msgs::msg::SegmentationMsg> postprocess() = 0;
+    virtual std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> postprocess() = 0;
 
     /**
      * Cleanup allocated model resources.

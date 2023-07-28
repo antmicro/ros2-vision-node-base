@@ -1,9 +1,9 @@
-from cvnode_msgs.srv import ManageCVNode, RuntimeProtocolSrv
-from cvnode_msgs.msg import SegmentationMsg
-from sensor_msgs.msg import Image
+from typing import Any, List
 
+from kenning_computer_vision_msgs.msg import SegmentationMsg
+from kenning_computer_vision_msgs.srv import ManageCVNode, RuntimeProtocolSrv
 from rclpy.node import Node
-from typing import List, Any
+from sensor_msgs.msg import Image
 
 
 class BaseCVNode(Node):
