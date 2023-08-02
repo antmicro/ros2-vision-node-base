@@ -1,3 +1,7 @@
+// Copyright 2022-2023 Antmicro <www.antmicro.com>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 
 #include <cvnode_base/cvnode_base.hpp>
@@ -12,21 +16,22 @@
 namespace cvnode_base
 {
 
+/**
+ * Container for Mask R-CNN outputs.
+ */
 struct MaskRCNNOutputs
 {
     at::Tensor boxes;   ///< Bounding boxes
     at::Tensor classes; ///< Class IDs
     at::Tensor masks;   ///< Masks
     at::Tensor scores;  ///< Scores
-
-    /**
-     * Get the number of instances detected.
-     *
-     * @return Number of instances.
-     */
-    int num_instances() const { return boxes.sizes()[0]; }
 };
 
+/**
+ * TorchScript implementation of Mask R-CNN model in a CVNode.
+ *
+ * @param model_path ROS 2 string parameter with path to model TorchScript file.
+ */
 class MaskRCNNTorchScript : public BaseCVNode
 {
 private:
@@ -42,7 +47,7 @@ private:
      */
     cv::Mat paste_mask(const at::Tensor &mask, const at::Tensor &box, const int height, const int width);
 
-    std::string script_path;                                ///< Path to TorchScript file
+    std::string model_path;                                 ///< Path to TorchScript file
     torch::jit::script::Module model;                       ///< TorchScript model
     c10::Device device = c10::Device(c10::DeviceType::CPU); ///< Device to run inference on
 
@@ -83,17 +88,9 @@ public:
     /**
      * Constructor.
      *
-     * @param node_name Name of the node.
-     * @param script_path Path to TorchScript file.
      * @param options Node options.
      */
-    MaskRCNNTorchScript(
-        const std::string &node_name,
-        const std::string &script_path,
-        const rclcpp::NodeOptions &options)
-        : BaseCVNode(node_name, options), script_path(script_path)
-    {
-    }
+    MaskRCNNTorchScript(const rclcpp::NodeOptions &options);
 
     /**
      * Load model from TorchScript file.
@@ -110,13 +107,12 @@ public:
     void preprocess(std::vector<sensor_msgs::msg::Image::SharedPtr> &images) override;
 
     /**
-     * Run inference on the images.
-     * This function is called after the images have been preprocessed.
+     * Run inference on preprocessed images.
      */
     void predict() override;
 
     /**
-     * Postprocess the inference results.
+     * Postprocess inference results.
      *
      * @return Vector of instance segmentation results.
      */
@@ -126,6 +122,17 @@ public:
      * Cleanup allocated model resources.
      */
     void cleanup() override;
+
+    /**
+     * Callback for communication service.
+     * Responsible for handling the communication between the manager and the node.
+     *
+     * @param request Request of the service.
+     * @param response Response of the service.
+     */
+    void communication_callback(
+        const kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Request::SharedPtr request,
+        kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Response::SharedPtr response) override;
 };
 
 } // namespace cvnode_base

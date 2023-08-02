@@ -1,10 +1,15 @@
+// Copyright 2022-2023 Antmicro <www.antmicro.com>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#include <cvnode_base/cvnode_base.hpp>
 #include <cvnode_base/nodes/mask_rcnn_torchscript.hpp>
 #include <cvnode_base/utils/utils.hpp>
 #include <kenning_computer_vision_msgs/msg/box_msg.hpp>
 #include <kenning_computer_vision_msgs/msg/mask_msg.hpp>
-#include <opencv2/opencv.hpp>
 
 #include <c10/cuda/CUDAStream.h>
+#include <opencv2/opencv.hpp>
 #include <torch/csrc/autograd/grad_mode.h>
 #include <torch/csrc/jit/runtime/graph_executor.h>
 #include <torch/nn/functional/vision.h>
@@ -12,19 +17,38 @@
 namespace cvnode_base
 {
 
+using RuntimeProtocolSrv = kenning_computer_vision_msgs::srv::RuntimeProtocolSrv;
+using SegmentationMsg = kenning_computer_vision_msgs::msg::SegmentationMsg;
+
+MaskRCNNTorchScript::MaskRCNNTorchScript(const rclcpp::NodeOptions &options)
+    : BaseCVNode("mask_rcnn_torchscript_node", options)
+{
+    rcl_interfaces::msg::ParameterDescriptor param_descriptor;
+    param_descriptor.read_only = false;
+    param_descriptor.description = "Path to the TorchScript model file";
+    declare_parameter<std::string>("model_path", "", param_descriptor);
+}
+
 bool MaskRCNNTorchScript::prepare()
 {
+    std::string model_path = get_parameter("model_path").as_string();
+    if (model_path.empty())
+    {
+        RCLCPP_ERROR(this->get_logger(), "No script path provided");
+        return false;
+    }
+
     torch::jit::FusionStrategy strategy = {{torch::jit::FusionBehavior::DYNAMIC, 1}};
     torch::jit::setFusionStrategy(strategy);
     torch::autograd::AutoGradMode guard(false);
-    model = torch::jit::load(this->script_path);
+    model = torch::jit::load(model_path);
     if (model.buffers().size() == 0)
     {
-        RCLCPP_ERROR(this->get_logger(), "No parameters found in script: %s", this->script_path.c_str());
+        RCLCPP_ERROR(this->get_logger(), "No parameters found in script: %s", model_path.c_str());
         return false;
     }
     device = (*std::begin(model.buffers())).device();
-    RCLCPP_INFO(this->get_logger(), "Successfuly loaded script %s", this->script_path.c_str());
+    RCLCPP_INFO(this->get_logger(), "Successfuly loaded script %s", model_path.c_str());
     return true;
 }
 
@@ -64,8 +88,10 @@ void MaskRCNNTorchScript::predict()
 
 std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess()
 {
-    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> segmentations;
-    kenning_computer_vision_msgs::msg::SegmentationMsg msg;
+    using MaskMsg = kenning_computer_vision_msgs::msg::MaskMsg;
+    using BoxMsg = kenning_computer_vision_msgs::msg::BoxMsg;
+    std::vector<SegmentationMsg> segmentations;
+    SegmentationMsg msg;
     MaskRCNNOutputs output;
     for (size_t i = 0; i < predictions.size(); i++)
     {
@@ -81,7 +107,7 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
             output.scores.data_ptr<float>() + output.scores.numel());
         for (int64_t j = 0; j < output.masks.size(0); j++)
         {
-            kenning_computer_vision_msgs::msg::MaskMsg mask_msg;
+            MaskMsg mask_msg;
             cv::Mat mask = paste_mask(
                 output.masks.select(0, j),
                 output.boxes.select(0, j),
@@ -89,7 +115,6 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
                 frames.at(i)->width);
             mask_msg.dimension.push_back(mask.rows);
             mask_msg.dimension.push_back(mask.cols);
-            mask.convertTo(mask, CV_8UC1, 255);
             mask_msg.data = std::vector<uint8_t>(mask.data, mask.data + mask.total());
             msg.masks.push_back(mask_msg);
         }
@@ -102,7 +127,7 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
         output.boxes = output.boxes.to(torch::kCPU);
         for (int64_t j = 0; j < output.boxes.size(0); j++)
         {
-            kenning_computer_vision_msgs::msg::BoxMsg box;
+            BoxMsg box;
             box.xmin = output.boxes.select(0, j).select(0, 0).item<float>();
             box.ymin = output.boxes.select(0, j).select(0, 1).item<float>();
             box.xmax = output.boxes.select(0, j).select(0, 2).item<float>();
@@ -139,7 +164,19 @@ MaskRCNNTorchScript::paste_mask(const at::Tensor &mask, const at::Tensor &box, c
     cv::Mat img_mat = cv::Mat::zeros(height, width, CV_32FC1);
     cv::Mat roi = img_mat(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
     cv::bitwise_or(roi, mask_mat, roi);
+    img_mat.convertTo(img_mat, CV_8UC1, 255);
     return img_mat;
 }
 
+// NYI: Utilize request/response
+void MaskRCNNTorchScript::communication_callback(
+    [[maybe_unused]] const RuntimeProtocolSrv::Request::SharedPtr request,
+    [[maybe_unused]] RuntimeProtocolSrv::Response::SharedPtr response)
+{
+}
+
 } // namespace cvnode_base
+
+#include <rclcpp_components/register_node_macro.hpp>
+
+RCLCPP_COMPONENTS_REGISTER_NODE(cvnode_base::MaskRCNNTorchScript)

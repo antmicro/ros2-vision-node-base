@@ -14,6 +14,8 @@
   <depend>kenning_computer_vision_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>cv_bridge</depend>
+  <depend>rclcpp_components</depend>
+  <depend>rcl_interfaces</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_cmake_clang_format</test_depend>
