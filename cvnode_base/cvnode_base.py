@@ -1,3 +1,9 @@
+# Copyright 2022-2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Base class for computer vision nodes."""
+
 from typing import Any, List
 
 from kenning_computer_vision_msgs.msg import SegmentationMsg
@@ -7,7 +13,12 @@ from sensor_msgs.msg import Image
 
 
 class BaseCVNode(Node):
-    """Base class for tested computer vision node."""
+    """
+    Base class for tested computer vision nodes.
+
+    Responsible for communication with the CVNodeManager
+    and running inference.
+    """
 
     def __init__(self, node_name: str):
         """
@@ -78,7 +89,11 @@ class BaseCVNode(Node):
         future.add_done_callback(register_callback)
 
     def destroy_node(self):
-        """Unregister node with the unregister service and destroys it."""
+        """
+        Destroy node.
+
+        Unregisters node if was registered.
+        """
         if self._manage_node_client:
             self._unregisterNode()
         super().destroy_node()
@@ -143,7 +158,7 @@ class BaseCVNode(Node):
         raise NotImplementedError
 
     def _unregisterNode(self):
-        """Unregister node with the unregister service."""
+        """Unregister node with service."""
         request = ManageCVNode.Request()
         request.type = request.UNREGISTER
         request.node_name = self.get_name()

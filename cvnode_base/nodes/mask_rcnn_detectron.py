@@ -1,22 +1,27 @@
-"""ROS2 node for MaskRCNN inference using Detectron2 framework."""
+# Copyright 2022-2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""CVNode with Mask R-CNN model from Detectron2 framework."""
+
 from typing import Dict, List
 
 import cv2
-import detectron2.data.transforms as T
 import numpy as np
-import torch
 from detectron2 import model_zoo
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
+from detectron2.data.transforms import ResizeShortestEdge
 from detectron2.modeling import build_model
 from kenning_computer_vision_msgs.msg import BoxMsg, MaskMsg, SegmentationMsg
 from sensor_msgs.msg import Image
+from torch import as_tensor
 
 from cvnode_base.cvnode_base import BaseCVNode
 
 
 class MaskRCNNDetectronNode(BaseCVNode):
-    """The MaskRCNN ROS2 node implemented using Detectron2 framework."""
+    """The Detectron2 implementation of a Mask R-CNN model in a CVNode."""
 
     classes = ('person', 'bicycle', 'car', 'motorcycle',
                'airplane', 'bus', 'train', 'truck',
@@ -41,7 +46,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
                )
 
     def __init__(self):
-        """Initialize MaskRCNN node."""
+        """Initialize node."""
         super().__init__(node_name='mask_rcnn_detectron_node')
 
     def prepare(self) -> bool:
@@ -53,18 +58,18 @@ class MaskRCNNDetectronNode(BaseCVNode):
         bool :
             True if the node is ready for execution, False otherwise.
         """
-        self.cfg = get_cfg()
-        self.cfg.merge_from_file(model_zoo.get_config_file(
+        cfg = get_cfg()
+        cfg.merge_from_file(model_zoo.get_config_file(
             'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'))
-        self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
             'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml')
-        self.model = build_model(self.cfg.clone())
+        self.model = build_model(cfg.clone())
         self.model.eval()
         checkpointer = DetectionCheckpointer(self.model)
-        checkpointer.load(self.cfg.MODEL.WEIGHTS)
-        self.aug = T.ResizeShortestEdge(
-            [self.cfg.INPUT.MIN_SIZE_TEST, self.cfg.INPUT.MIN_SIZE_TEST],
-            self.cfg.INPUT.MAX_SIZE_TEST)
+        checkpointer.load(cfg.MODEL.WEIGHTS)
+        self.aug = ResizeShortestEdge(
+            [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST],
+            cfg.INPUT.MAX_SIZE_TEST)
         return True
 
     def preprocess(self, X: List[Image]) -> List[Dict]:
@@ -90,7 +95,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
             width = msg.width
             img = np.reshape(img, (height, width, -1))
             augmented = self.aug.get_transform(img).apply_image(img)
-            augmented = torch.as_tensor(
+            augmented = as_tensor(
                 augmented.astype('float32').transpose(2, 0, 1))
             Y.append({'image': augmented, 'height': height, 'width': width})
         return Y
@@ -138,12 +143,18 @@ class MaskRCNNDetectronNode(BaseCVNode):
                 mask._data = mask_np.flatten().astype('uint8')
                 msg._masks.append(mask)
 
-            for box_np in prediction.pred_boxes.tensor.cpu().detach().numpy():
+            boxes = prediction.pred_boxes.tensor
+            boxes[:, 0] /= prediction.image_size[1]
+            boxes[:, 1] /= prediction.image_size[0]
+            boxes[:, 2] /= prediction.image_size[1]
+            boxes[:, 3] /= prediction.image_size[0]
+
+            for box_np in boxes.cpu().detach().numpy():
                 box = BoxMsg()
-                box._xmin = float(box_np[0] / prediction.image_size[1])
-                box._ymin = float(box_np[1] / prediction.image_size[0])
-                box._xmax = float(box_np[2] / prediction.image_size[1])
-                box._ymax = float(box_np[3] / prediction.image_size[0])
+                box._xmin = float(box_np[0])
+                box._ymin = float(box_np[1])
+                box._xmax = float(box_np[2])
+                box._ymax = float(box_np[3])
                 msg._boxes.append(box)
 
             labels = prediction.pred_classes.cpu().detach().numpy()
@@ -158,9 +169,6 @@ class MaskRCNNDetectronNode(BaseCVNode):
         if (self.model):
             del self.model
             self.model = None
-        if (self.cfg):
-            del self.cfg
-            self.cfg = None
         if (self.aug):
             del self.aug
             self.aug = None
