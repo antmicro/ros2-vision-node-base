@@ -1,3 +1,6 @@
+// Copyright 2022-2023 Antmicro <www.antmicro.com>
+//
+// SPDX-License-Identifier: Apache-2.0
 #pragma once
 
 #include <memory>
@@ -77,15 +80,15 @@ public:
     virtual void preprocess(std::vector<sensor_msgs::msg::Image::SharedPtr> &images) = 0;
 
     /**
-     * Run inference on the images.
-     * This function is called after the images have been preprocessed.
+     * Run inference.
+     * This function is called after preprocess stage.
      */
     virtual void predict() = 0;
 
     /**
-     * Postprocess the inference results.
+     * Postprocess inference results.
      *
-     * @return Vector of instance segmentation results.
+     * @return Vector of segmentation results.
      */
     virtual std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> postprocess() = 0;
 

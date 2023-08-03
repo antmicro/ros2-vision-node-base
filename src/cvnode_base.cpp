@@ -1,10 +1,16 @@
+// Copyright 2022-2023 Antmicro <www.antmicro.com>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 #include "cvnode_base/cvnode_base.hpp"
 
 namespace cvnode_base
 {
 
-void BaseCVNode::register_callback(
-    const rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedFuture future)
+using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
+using RuntimeProtocolSrv = kenning_computer_vision_msgs::srv::RuntimeProtocolSrv;
+
+void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFuture future)
 {
 
     auto result = future.get();
@@ -32,7 +38,7 @@ void BaseCVNode::registerNode(const std::string &manage_node_name)
     }
 
     // Create a service client to manage the node
-    manage_client = create_client<kenning_computer_vision_msgs::srv::ManageCVNode>(manage_node_name);
+    manage_client = create_client<ManageCVNode>(manage_node_name);
 
     // Check if the service is available
     if (!manage_client->wait_for_service(std::chrono::seconds(1)))
@@ -42,21 +48,20 @@ void BaseCVNode::registerNode(const std::string &manage_node_name)
     }
 
     // Create a request
-    auto request = std::make_shared<kenning_computer_vision_msgs::srv::ManageCVNode::Request>();
+    auto request = std::make_shared<ManageCVNode::Request>();
     request->type = request->REGISTER;
     request->node_name = std::string(get_name());
     request->srv_name = std::string(get_name()) + "/communication";
 
     // Create communication service
-    communication_service = create_service<kenning_computer_vision_msgs::srv::RuntimeProtocolSrv>(
+    communication_service = create_service<RuntimeProtocolSrv>(
         request->srv_name,
         std::bind(&BaseCVNode::communication_callback, this, std::placeholders::_1, std::placeholders::_2));
 
     // Send the request
     manage_client->async_send_request(
         request,
-        [this](const rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedFuture future)
-        { register_callback(future); });
+        [this](const rclcpp::Client<ManageCVNode>::SharedFuture future) { register_callback(future); });
 }
 
 void BaseCVNode::unregisterNode()
@@ -67,7 +72,7 @@ void BaseCVNode::unregisterNode()
         return;
     }
 
-    auto request = std::make_shared<kenning_computer_vision_msgs::srv::ManageCVNode::Request>();
+    auto request = std::make_shared<ManageCVNode::Request>();
     request->type = request->UNREGISTER;
     request->node_name = std::string(get_name());
     manage_client->async_send_request(request);
