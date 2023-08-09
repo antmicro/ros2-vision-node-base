@@ -9,7 +9,7 @@
 
 #include <kenning_computer_vision_msgs/msg/segmentation_msg.hpp>
 #include <kenning_computer_vision_msgs/srv/manage_cv_node.hpp>
-#include <kenning_computer_vision_msgs/srv/runtime_protocol_srv.hpp>
+#include <kenning_computer_vision_msgs/srv/segment_cv_node_srv.hpp>
 
 namespace cvnode_base
 {
@@ -34,9 +34,9 @@ private:
      * @param request Request of the service.
      * @param response Response of the service.
      */
-    virtual void communication_callback(
-        const kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Request::SharedPtr request,
-        kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Response::SharedPtr response) = 0;
+    void communication_callback(
+        const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request,
+        kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Response::SharedPtr response);
 
     /**
      * Unregister node using the node management service.
@@ -47,7 +47,7 @@ private:
     rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedPtr manage_client;
 
     /// Communication service.
-    rclcpp::Service<kenning_computer_vision_msgs::srv::RuntimeProtocolSrv>::SharedPtr communication_service;
+    rclcpp::Service<kenning_computer_vision_msgs::srv::SegmentCVNodeSrv>::SharedPtr communication_service;
 
 public:
     /**

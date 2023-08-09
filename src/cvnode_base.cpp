@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "cvnode_base/cvnode_base.hpp"
+#include <kenning_computer_vision_msgs/runtime_msg_type.hpp>
 
 namespace cvnode_base
 {
 
 using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
-using RuntimeProtocolSrv = kenning_computer_vision_msgs::srv::RuntimeProtocolSrv;
+using SegmentCVNodeSrv = kenning_computer_vision_msgs::srv::SegmentCVNodeSrv;
 
 void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFuture future)
 {
@@ -23,6 +24,9 @@ void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFut
     {
         RCLCPP_ERROR(get_logger(), "The node is not registered");
         RCLCPP_ERROR(get_logger(), "Error message: %s", result->message.c_str());
+        cleanup();
+        manage_client.reset();
+        communication_service.reset();
         return;
     }
 
@@ -54,7 +58,7 @@ void BaseCVNode::registerNode(const std::string &manage_node_name)
     request->srv_name = std::string(get_name()) + "/communication";
 
     // Create communication service
-    communication_service = create_service<RuntimeProtocolSrv>(
+    communication_service = create_service<SegmentCVNodeSrv>(
         request->srv_name,
         std::bind(&BaseCVNode::communication_callback, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -77,6 +81,7 @@ void BaseCVNode::unregisterNode()
     request->node_name = std::string(get_name());
     manage_client->async_send_request(request);
     manage_client.reset();
+    communication_service.reset();
 }
 
 } // namespace cvnode_base

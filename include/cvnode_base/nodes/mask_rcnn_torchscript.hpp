@@ -122,17 +122,6 @@ public:
      * Cleanup allocated model resources.
      */
     void cleanup() override;
-
-    /**
-     * Callback for communication service.
-     * Responsible for handling the communication between the manager and the node.
-     *
-     * @param request Request of the service.
-     * @param response Response of the service.
-     */
-    void communication_callback(
-        const kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Request::SharedPtr request,
-        kenning_computer_vision_msgs::srv::RuntimeProtocolSrv::Response::SharedPtr response) override;
 };
 
 } // namespace cvnode_base

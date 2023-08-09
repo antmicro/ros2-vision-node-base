@@ -7,7 +7,7 @@
 from typing import Any, List
 
 from kenning_computer_vision_msgs.msg import SegmentationMsg
-from kenning_computer_vision_msgs.srv import ManageCVNode, RuntimeProtocolSrv
+from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 
@@ -60,7 +60,7 @@ class BaseCVNode(Node):
 
         # Initialize services
         self._communication_service = self.create_service(
-            RuntimeProtocolSrv,
+            SegmentCVNodeSrv,
             communication_service_name,
             self._communicationCallback
         )
@@ -166,9 +166,9 @@ class BaseCVNode(Node):
         self._manage_node_client.call_async(request)
         self._manage_node_client = None
 
-    def _communicationCallback(self, request: RuntimeProtocolSrv.Request,
-                               response: RuntimeProtocolSrv.Response
-                               ) -> RuntimeProtocolSrv.Response:
+    def _communicationCallback(self, request: SegmentCVNodeSrv.Request,
+                               response: SegmentCVNodeSrv.Response
+                               ) -> SegmentCVNodeSrv.Response:
         """
         Callback for the communication service.
 
@@ -177,14 +177,14 @@ class BaseCVNode(Node):
 
         Parameters
         ----------
-        request : RuntimeProtocolSrv.Request
+        request : SegmentCVNodeSrv.Request
             Request for the communication service.
-        response : RuntimeProtocolSrv.Response
+        response : SegmentCVNodeSrv.Response
             Processed response for the communication service client.
 
         Returns
         -------
-        RuntimeProtocolSrv.Response
+        SegmentCVNodeSrv.Response
             Processed response for the communication service client.
 
         """

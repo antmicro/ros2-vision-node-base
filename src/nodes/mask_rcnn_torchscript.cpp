@@ -17,7 +17,6 @@
 namespace cvnode_base
 {
 
-using RuntimeProtocolSrv = kenning_computer_vision_msgs::srv::RuntimeProtocolSrv;
 using SegmentationMsg = kenning_computer_vision_msgs::msg::SegmentationMsg;
 
 MaskRCNNTorchScript::MaskRCNNTorchScript(const rclcpp::NodeOptions &options)
@@ -166,13 +165,6 @@ MaskRCNNTorchScript::paste_mask(const at::Tensor &mask, const at::Tensor &box, c
     cv::bitwise_or(roi, mask_mat, roi);
     img_mat.convertTo(img_mat, CV_8UC1, 255);
     return img_mat;
-}
-
-// NYI: Utilize request/response
-void MaskRCNNTorchScript::communication_callback(
-    [[maybe_unused]] const RuntimeProtocolSrv::Request::SharedPtr request,
-    [[maybe_unused]] RuntimeProtocolSrv::Response::SharedPtr response)
-{
 }
 
 } // namespace cvnode_base
