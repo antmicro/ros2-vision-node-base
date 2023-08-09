@@ -52,7 +52,7 @@ private:
     /// Input data
     std::vector<sensor_msgs::msg::Image> input_data;
 
-    /// Post processed inference output
+    /// Post-processed inference output
     std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> output_data;
 
 public:
@@ -96,7 +96,7 @@ public:
     virtual bool predict() = 0;
 
     /**
-     * Postprocess inference results.
+     * Post-process inference results.
      *
      * @return Vector of segmentation results.
      */

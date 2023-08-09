@@ -11,6 +11,69 @@ namespace cvnode_base
 using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
 using SegmentCVNodeSrv = kenning_computer_vision_msgs::srv::SegmentCVNodeSrv;
 
+void BaseCVNode::communication_callback(
+    const SegmentCVNodeSrv::Request::SharedPtr request,
+    const SegmentCVNodeSrv::Response::SharedPtr response)
+{
+    using namespace kenning_computer_vision_msgs::runtime_message_type;
+    switch (request->message_type)
+    {
+    case MODEL:
+        if (!prepare())
+        {
+            response->message_type = ERROR;
+            RCLCPP_ERROR(get_logger(), "Failed to prepare node. Closing.");
+            cleanup();
+            unregisterNode();
+            break;
+        }
+        response->message_type = OK;
+        break;
+    case DATA:
+        if (request->input.size() == 0)
+        {
+            RCLCPP_ERROR(get_logger(), "Received empty data");
+            response->message_type = ERROR;
+            break;
+        }
+        input_data = request->input;
+        response->message_type = OK;
+        break;
+    case PROCESS:
+        if (!preprocess(input_data))
+        {
+            RCLCPP_ERROR(get_logger(), "Preprocessing failed");
+            response->message_type = ERROR;
+            break;
+        }
+        if (!predict())
+        {
+            RCLCPP_ERROR(get_logger(), "Inference failed");
+            response->message_type = ERROR;
+            break;
+        }
+        output_data = postprocess();
+        response->message_type = OK;
+        input_data.clear();
+        break;
+    case OUTPUT:
+        if (output_data.size() == 0)
+        {
+            RCLCPP_ERROR(get_logger(), "No output data");
+            response->message_type = ERROR;
+            break;
+        }
+        response->output = output_data;
+        response->message_type = OK;
+        output_data.clear();
+        break;
+    default:
+        RCLCPP_ERROR(get_logger(), "Unknown message type. Aborting.");
+        response->message_type = ERROR;
+        break;
+    }
+}
+
 void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFuture future)
 {
 
