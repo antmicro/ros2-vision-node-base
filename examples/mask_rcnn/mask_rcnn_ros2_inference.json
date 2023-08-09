@@ -1,0 +1,33 @@
+{
+    "model_wrapper":
+    {
+        "type": "kenning.modelwrappers.instance_segmentation.ros2.ROS2SegmentationWrapper",
+        "parameters":
+        {
+            "model_path": "kenning:///models/instance_segmentation/yolact.onnx"
+        }
+    },
+    "dataset":
+    {
+        "type": "kenning.datasets.coco_dataset.COCODataset2017",
+        "parameters":
+        {
+            "dataset_root": "./build/COCODataset",
+            "download_dataset": true
+        }
+    },
+    "runtime":
+    {
+        "type": "kenning.core.runtime.Runtime",
+        "parameters": {}
+    },
+    "runtime_protocol":
+    {
+        "type": "kenning.runtimeprotocols.ros2.ROS2Protocol",
+        "parameters":
+        {
+            "node_name": "kenning_dataprovider",
+            "service_name": "node_manager/dataprovider"
+        }
+    }
+}

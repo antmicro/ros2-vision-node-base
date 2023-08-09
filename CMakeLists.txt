@@ -86,7 +86,8 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
         RUNTIME DESTINATION bin
     )
 
-    install(FILES launch/mask_rcnn_torchscript_launch.py
+    install(FILES
+        examples/mask_rcnn/mask_rcnn_torchscript_launch.py
         DESTINATION share/${PROJECT_NAME})
 endif(BUILD_MASK_RCNN_TORCHSCRIPT)
 
