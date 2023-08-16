@@ -49,6 +49,12 @@ private:
     /// Communication service.
     rclcpp::Service<kenning_computer_vision_msgs::srv::SegmentCVNodeSrv>::SharedPtr communication_service;
 
+    /// Input data
+    std::vector<sensor_msgs::msg::Image> input_data;
+
+    /// Post processed inference output
+    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> output_data;
+
 public:
     /**
      * Constructor.
@@ -76,14 +82,18 @@ public:
      * Preprocess images for inference.
      *
      * @param images Vector of images to preprocess.
+     *
+     * @return True if preprocessing was successful, false otherwise.
      */
-    virtual void preprocess(std::vector<sensor_msgs::msg::Image::SharedPtr> &images) = 0;
+    virtual bool preprocess(std::vector<sensor_msgs::msg::Image> &images) = 0;
 
     /**
      * Run inference.
      * This function is called after preprocess stage.
+     *
+     * @return True if inference was successful, false otherwise.
      */
-    virtual void predict() = 0;
+    virtual bool predict() = 0;
 
     /**
      * Postprocess inference results.

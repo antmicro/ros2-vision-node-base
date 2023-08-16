@@ -51,9 +51,9 @@ private:
     torch::jit::script::Module model;                       ///< TorchScript model
     c10::Device device = c10::Device(c10::DeviceType::CPU); ///< Device to run inference on
 
-    std::vector<sensor_msgs::msg::Image::SharedPtr> frames; ///< Input images
-    std::vector<c10::IValue> inputs;                        ///< Preprocessed input images
-    std::vector<MaskRCNNOutputs> predictions;               ///< Inference outputs
+    std::vector<sensor_msgs::msg::Image> frames; ///< Input images
+    std::vector<c10::IValue> inputs;             ///< Preprocessed input images
+    std::vector<MaskRCNNOutputs> predictions;    ///< Inference outputs
 
     /// Class names
     std::vector<std::string> class_names{"person",        "bicycle",      "car",
@@ -103,13 +103,17 @@ public:
      * Preprocess images for inference.
      *
      * @param images Vector of images to preprocess.
+     *
+     * @return True if successful, false otherwise.
      */
-    void preprocess(std::vector<sensor_msgs::msg::Image::SharedPtr> &images) override;
+    bool preprocess(std::vector<sensor_msgs::msg::Image> &images) override;
 
     /**
      * Run inference on preprocessed images.
+     *
+     * @return True if successful, false otherwise.
      */
-    void predict() override;
+    bool predict() override;
 
     /**
      * Postprocess inference results.

@@ -47,11 +47,10 @@ bool MaskRCNNTorchScript::prepare()
         return false;
     }
     device = (*std::begin(model.buffers())).device();
-    RCLCPP_INFO(this->get_logger(), "Successfuly loaded script %s", model_path.c_str());
     return true;
 }
 
-void MaskRCNNTorchScript::preprocess(std::vector<sensor_msgs::msg::Image::SharedPtr> &images)
+bool MaskRCNNTorchScript::preprocess(std::vector<sensor_msgs::msg::Image> &images)
 {
     inputs.clear();
     frames.clear();
@@ -63,9 +62,10 @@ void MaskRCNNTorchScript::preprocess(std::vector<sensor_msgs::msg::Image::Shared
         tensor_image = tensor_image.to(device, torch::kFloat).permute({2, 0, 1}).contiguous();
         inputs.push_back(tensor_image);
     }
+    return true;
 }
 
-void MaskRCNNTorchScript::predict()
+bool MaskRCNNTorchScript::predict()
 {
     predictions.clear();
     for (auto &input : inputs)
@@ -83,6 +83,7 @@ void MaskRCNNTorchScript::predict()
             tuple_outputs[3].toTensor().to(torch::kCPU)};
         predictions.push_back(model_output);
     }
+    return true;
 }
 
 std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess()
@@ -95,7 +96,7 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
     for (size_t i = 0; i < predictions.size(); i++)
     {
         output = predictions.at(i);
-        msg.frame = *frames.at(i).get();
+        msg.frame = frames.at(i);
         std::transform(
             output.classes.data_ptr<int64_t>(),
             output.classes.data_ptr<int64_t>() + output.classes.numel(),
@@ -110,15 +111,15 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
             cv::Mat mask = paste_mask(
                 output.masks.select(0, j),
                 output.boxes.select(0, j),
-                frames.at(i)->height,
-                frames.at(i)->width);
+                frames.at(i).height,
+                frames.at(i).width);
             mask_msg.dimension.push_back(mask.rows);
             mask_msg.dimension.push_back(mask.cols);
             mask_msg.data = std::vector<uint8_t>(mask.data, mask.data + mask.total());
             msg.masks.push_back(mask_msg);
         }
-        const c10::Scalar width = c10::Scalar(static_cast<float>(frames.at(i)->width));
-        const c10::Scalar height = c10::Scalar(static_cast<float>(frames.at(i)->height));
+        const c10::Scalar width = c10::Scalar(static_cast<float>(frames.at(i).width));
+        const c10::Scalar height = c10::Scalar(static_cast<float>(frames.at(i).height));
         output.boxes.select(1, 0).div_(width);
         output.boxes.select(1, 1).div_(height);
         output.boxes.select(1, 2).div_(width);
