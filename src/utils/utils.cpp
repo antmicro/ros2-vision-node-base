@@ -9,21 +9,23 @@
 namespace cvnode_base
 {
 
-cv::Mat imageToMat(const sensor_msgs::msg::Image::SharedPtr &img, const std::string &encoding)
+cv::Mat imageToMat(const sensor_msgs::msg::Image &img, const std::string &encoding)
 {
-    cv_bridge::CvImagePtr cv_ptr;
-    if (img->encoding == sensor_msgs::image_encodings::TYPE_8UC3)
+    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, img.encoding);
+    if (img.encoding == sensor_msgs::image_encodings::TYPE_8UC3)
     {
-        cv_ptr = cv_bridge::toCvCopy(img, img->encoding);
         cv_ptr->encoding = sensor_msgs::image_encodings::BGR8;
     }
-    else if (img->encoding == sensor_msgs::image_encodings::TYPE_8UC4)
+    else if (img.encoding == sensor_msgs::image_encodings::TYPE_8UC4)
     {
-        cv_ptr = cv_bridge::toCvCopy(img, img->encoding);
         cv_ptr->encoding = sensor_msgs::image_encodings::BGRA8;
     }
+    else
+    {
+        cv_ptr->encoding = img.encoding;
+    }
 
-    if (img->encoding == encoding)
+    if (img.encoding == encoding)
     {
         return cv_ptr->image;
     }

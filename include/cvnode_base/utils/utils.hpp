@@ -18,6 +18,6 @@ namespace cvnode_base
  *
  * @return Converted cv::Mat.
  */
-cv::Mat imageToMat(const sensor_msgs::msg::Image::SharedPtr &img, const std::string &encoding);
+cv::Mat imageToMat(const sensor_msgs::msg::Image &img, const std::string &encoding);
 
 } // namespace cvnode_base
