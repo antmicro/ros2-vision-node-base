@@ -157,12 +157,20 @@ MaskRCNNTorchScript::paste_mask(const at::Tensor &mask, const at::Tensor &box, c
     int32_t xmax = std::min(box_int.select(0, 2).item<int32_t>(), width);
     int32_t ymax = std::min(box_int.select(0, 3).item<int32_t>(), height);
 
+    int32_t x_size = xmax - xmin;
+    int32_t y_size = ymax - ymin;
+
+    if (x_size <= 0 || y_size <= 0)
+    {
+        return cv::Mat::zeros(height, width, CV_8UC1);
+    }
+
     cv::Mat mask_mat = cv::Mat(mask.size(0), mask.size(1), CV_32FC1, mask.data_ptr<float>());
-    cv::resize(mask_mat, mask_mat, cv::Size(xmax - xmin, ymax - ymin), cv::INTER_LINEAR);
+    cv::resize(mask_mat, mask_mat, cv::Size(x_size, y_size), cv::INTER_LINEAR);
     cv::threshold(mask_mat, mask_mat, 0.5, 255, cv::THRESH_BINARY);
 
     cv::Mat img_mat = cv::Mat::zeros(height, width, CV_32FC1);
-    cv::Mat roi = img_mat(cv::Rect(xmin, ymin, xmax - xmin, ymax - ymin));
+    cv::Mat roi = img_mat(cv::Rect(xmin, ymin, x_size, y_size));
     cv::bitwise_or(roi, mask_mat, roi);
     img_mat.convertTo(img_mat, CV_8UC1, 255);
     return img_mat;
