@@ -29,6 +29,12 @@ void BaseCVNode::communication_callback(
         }
         response->message_type = OK;
         break;
+    case ERROR:
+        response->message_type = ERROR;
+        RCLCPP_ERROR(get_logger(), "Received ERROR message. Cleaning up.");
+        cleanup();
+        unregisterNode();
+        break;
     case DATA:
         if (request->input.size() == 0)
         {
