@@ -18,6 +18,12 @@ def generate_launch_description():
         description='Path to the TorchScript model file'
     )
 
+    log_level = DeclareLaunchArgument(
+        'log_level',
+        default_value='INFO',
+        description='Log level'
+    )
+
     mask_rcnn_node_container = ComposableNodeContainer(
         name='mask_rcnn_node_container',
         namespace='',
@@ -31,9 +37,11 @@ def generate_launch_description():
                 parameters=[{
                     'model_path': LaunchConfiguration('model_path')
                 }],
-            )
+            ),
         ],
         output='both',
+        arguments=['--ros-args',
+                   '--log-level', LaunchConfiguration('log_level')]
     )
 
     cvnode_manager_node = ComposableNodeContainer(
@@ -45,19 +53,26 @@ def generate_launch_description():
             ComposableNode(
                 package='cvnode_manager',
                 plugin='cvnode_manager::CVNodeManager',
-                name='sample_cvnode_manager')
+                name='sample_cvnode_manager',
+            )
         ],
         output='both',
+        arguments=['--ros-args',
+                   '--log-level', LaunchConfiguration('log_level')],
         on_exit=Shutdown()
     )
 
     kenning_node = ExecuteProcess(
         name='kenning_node',
-        cmd='python -m kenning test --json-cfg ./src/cvnode_base/examples/mask_rcnn/mask_rcnn_ros2_inference.json --measurements ./build/ros2-client-measurements.json --verbosity INFO'.split(' ')  # noqa: E501
+        cmd='python -m kenning test \
+--json-cfg ./src/cvnode_base/examples/mask_rcnn/mask_rcnn_ros2_inference.json \
+--measurements ./build/ros2-client-measurements.json \
+--verbosity INFO'.split(' ')
     )
 
     return LaunchDescription([
         model_path,
+        log_level,
         mask_rcnn_node_container,
         cvnode_manager_node,
         kenning_node,
