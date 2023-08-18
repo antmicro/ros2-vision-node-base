@@ -165,7 +165,9 @@ class MaskRCNNDetectronNode(BaseCVNode):
         return X
 
     def cleanup(self):
-        """Cleanup allocated resources."""
+        """
+        Cleanup allocated resources used by the node.
+        """
         if (self.model):
             del self.model
             self.model = None

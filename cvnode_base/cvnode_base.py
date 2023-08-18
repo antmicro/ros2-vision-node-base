@@ -157,6 +157,12 @@ class BaseCVNode(Node):
         """
         raise NotImplementedError
 
+    def cleanup(self):
+        """
+        Cleanup allocated resources used by the node.
+        """
+        raise NotImplementedError
+
     def _unregisterNode(self):
         """Unregister node with service."""
         request = ManageCVNode.Request()
