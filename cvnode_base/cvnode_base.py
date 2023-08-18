@@ -11,6 +11,8 @@ from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 
+from cvnode_base.helpers.runtime_msg_type import RuntimeMsgType
+
 
 class BaseCVNode(Node):
     """
@@ -34,6 +36,12 @@ class BaseCVNode(Node):
 
         # Service responsible for communication with the CVNodeManager
         self._communication_service = None
+
+        # Stores input data
+        self._input_data = None
+
+        # Stores model output data
+        self._output_data = None
 
         super().__init__(node_name)
 
@@ -121,7 +129,7 @@ class BaseCVNode(Node):
         Returns
         -------
         List[Any] :
-            Preprocessed data.
+            Preprocessed data compatible with model inputs.
         """
         raise NotImplementedError
 
@@ -132,12 +140,12 @@ class BaseCVNode(Node):
         Parameters
         ----------
         X : List[Any]
-            Input data.
+            Preprocessed input data.
 
         Returns
         -------
         List[Any] :
-            Model predictions.
+            Model predictions compatible with post processing stage.
         """
         raise NotImplementedError
 
@@ -178,8 +186,8 @@ class BaseCVNode(Node):
         """
         Callback for the communication service.
 
-        Responsible for handling the communication message type and invoking
-        the appropriate method.
+        Responsible for handling CVNodeManager's request messages by invoking
+        appropriate methods.
 
         Parameters
         ----------
@@ -190,8 +198,75 @@ class BaseCVNode(Node):
 
         Returns
         -------
-        SegmentCVNodeSrv.Response
+        SegmentCVNodeSrv.Response :
             Processed response for the communication service client.
-
         """
-        raise NotImplementedError
+
+        def report_error(response: SegmentCVNodeSrv.Response,
+                         message: str) -> SegmentCVNodeSrv.Response:
+            """
+            Report error to the client.
+
+            Parameters
+            ----------
+            response : SegmentCVNodeSrv.Response
+                Response to the client.
+            message : str
+                Error message to be logged.
+
+            Returns
+            -------
+            SegmentCVNodeSrv.Response :
+                Response to the client with ERROR code.
+            """
+            nonlocal self
+            response.message_type = RuntimeMsgType.ERROR.value
+            self.get_logger().error(message)
+            return response
+
+        request_type = RuntimeMsgType(request.message_type)
+
+        if request_type == RuntimeMsgType.OK:
+            if not self.prepare():
+                response = report_error(response, 'Failed to prepare node.')
+                self.cleanup()
+                self._unregisterNode()
+                return response
+
+        elif request_type == RuntimeMsgType.ERROR:
+            response = report_error(response, 'Received ERROR message. ' +
+                                    'Cleaning up.')
+            self.cleanup()
+            self._unregisterNode()
+            return response
+
+        elif request_type == RuntimeMsgType.MODEL:
+            if not self.prepare():
+                return report_error(response, 'Failed to prepare node.')
+
+        elif request_type == RuntimeMsgType.DATA:
+            if not request.input:
+                return report_error(response, 'Received empty data')
+            self._input_data = request.input
+
+        elif request_type == RuntimeMsgType.PROCESS:
+            preprocessed = self.preprocess(self._input_data)
+            if not preprocessed:
+                return report_error(response, 'Preprocessing failed')
+            predictions = self.predict(preprocessed)
+            if not predictions:
+                return report_error(response, 'Inference failed')
+            self._output_data = self.postprocess(predictions)
+            self._input_data = None
+
+        elif request_type == RuntimeMsgType.OUTPUT:
+            if not self._output_data:
+                return report_error(response, 'No output data available')
+            response._output = self._output_data
+            self._output_data = None
+
+        else:
+            return report_error(response,
+                                f'Unknown message type: {request_type}')
+        response.message_type = RuntimeMsgType.OK.value
+        return response
