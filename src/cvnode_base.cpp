@@ -18,6 +18,7 @@ void BaseCVNode::communication_callback(
 {
     using namespace kenning_computer_vision_msgs::runtime_message_type;
     SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
+    uint64_t this_process_request_id;
     switch (request->message_type)
     {
     case MODEL:
@@ -55,8 +56,12 @@ void BaseCVNode::communication_callback(
         communication_service->send_response(*header, response);
         break;
     case PROCESS:
+        data_mutex.lock();
+        process_request_id++;
+        this_process_request_id = process_request_id;
+        data_mutex.unlock();
         std::thread(
-            [this, header]()
+            [this, header, this_process_request_id]()
             {
                 bool success;
                 SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
@@ -70,15 +75,35 @@ void BaseCVNode::communication_callback(
                     communication_service->send_response(*header, response);
                     return;
                 }
+                data_mutex.lock();
+                if (this_process_request_id != process_request_id)
+                {
+                    data_mutex.unlock();
+                    RCLCPP_DEBUG(get_logger(), "[PREDICT] Request id mismatch. Aborting further processing.");
+                    return;
+                }
+                data_mutex.unlock();
+
+                process_mutex.lock();
                 success = predict();
+                process_mutex.unlock();
+
                 if (!success)
                 {
+                    data_mutex.unlock();
                     RCLCPP_ERROR(get_logger(), "Inference failed");
                     response.message_type = ERROR;
                     communication_service->send_response(*header, response);
                     return;
                 }
+
                 data_mutex.lock();
+                if (this_process_request_id != process_request_id)
+                {
+                    data_mutex.unlock();
+                    RCLCPP_DEBUG(get_logger(), "[POSTPROCESS] Request id mismatch. Aborting further processing.");
+                    return;
+                }
                 output_data = postprocess();
                 input_data.clear();
                 data_mutex.unlock();
@@ -89,6 +114,7 @@ void BaseCVNode::communication_callback(
         break;
     case OUTPUT:
         data_mutex.lock();
+        process_request_id++;
         if (output_data.size() == 0)
         {
             RCLCPP_WARN(get_logger(), "[OUTPUT] No output data, returning empty message");

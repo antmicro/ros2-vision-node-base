@@ -55,7 +55,10 @@ private:
     /// Post-processed inference output
     std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> output_data;
 
-    std::mutex data_mutex; ///< Mutex for data access
+    std::mutex data_mutex;    ///< Mutex for data access
+    std::mutex process_mutex; ///< Mutex for processing access
+
+    uint64_t process_request_id = 0; ///< ID incremented for each request
 
 public:
     /**
