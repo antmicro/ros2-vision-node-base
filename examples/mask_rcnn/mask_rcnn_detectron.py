@@ -3,14 +3,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from cvnode_base.nodes.mask_rcnn_detectron import MaskRCNNDetectronNode
 import rclpy
+
+from cvnode_base.nodes.mask_rcnn_detectron import MaskRCNNDetectronNode
 
 
 def main(args=None):
     rclpy.init(args=args)
+    executor = rclpy.executors.MultiThreadedExecutor()
     node = MaskRCNNDetectronNode()
-    rclpy.spin(node)
+    executor.add_node(node)
+    executor.spin()
     node.destroy_node()
     rclpy.shutdown()
 
