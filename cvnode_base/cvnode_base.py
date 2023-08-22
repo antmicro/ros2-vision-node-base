@@ -4,10 +4,12 @@
 
 """Base class for computer vision nodes."""
 
+from threading import Lock
 from typing import Any, List
 
 from kenning_computer_vision_msgs.msg import SegmentationMsg
 from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 
@@ -41,7 +43,10 @@ class BaseCVNode(Node):
         self._input_data = None
 
         # Stores model output data
-        self._output_data = None
+        self._output_data = []
+
+        # Data access lock
+        self._data_lock = Lock()
 
         super().__init__(node_name)
 
@@ -70,8 +75,8 @@ class BaseCVNode(Node):
         self._communication_service = self.create_service(
             SegmentCVNodeSrv,
             communication_service_name,
-            self._communicationCallback
-        )
+            self._communicationCallback,
+            callback_group=ReentrantCallbackGroup())
 
         # Create request for manage service
         request = ManageCVNode.Request()
@@ -247,23 +252,31 @@ class BaseCVNode(Node):
         elif request_type == RuntimeMsgType.DATA:
             if not request.input:
                 return report_error(response, 'Received empty data')
+            self._data_lock.acquire()
             self._input_data = request.input
+            self._data_lock.release()
 
         elif request_type == RuntimeMsgType.PROCESS:
+            self._data_lock.acquire()
             preprocessed = self.preprocess(self._input_data)
+            self._data_lock.release()
             if not preprocessed:
                 return report_error(response, 'Preprocessing failed')
             predictions = self.predict(preprocessed)
             if not predictions:
                 return report_error(response, 'Inference failed')
+            self._data_lock.acquire()
             self._output_data = self.postprocess(predictions)
             self._input_data = None
+            self._data_lock.release()
 
         elif request_type == RuntimeMsgType.OUTPUT:
+            self._data_lock.acquire()
             if not self._output_data:
-                return report_error(response, 'No output data available')
+                self.get_logger().warn('No output data to send')
             response._output = self._output_data
-            self._output_data = None
+            self._output_data = []
+            self._data_lock.release()
 
         else:
             return report_error(response,
