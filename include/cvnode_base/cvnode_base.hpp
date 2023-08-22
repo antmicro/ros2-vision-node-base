@@ -31,12 +31,12 @@ private:
      * Callback for communication service.
      * Responsible for handling the communication between the manager and the node.
      *
+     * @param header Header of the service request.
      * @param request Request of the service.
-     * @param response Response of the service.
      */
     void communication_callback(
-        const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request,
-        kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Response::SharedPtr response);
+        const std::shared_ptr<rmw_request_id_t> header,
+        const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request);
 
     /**
      * Unregister node using the node management service.

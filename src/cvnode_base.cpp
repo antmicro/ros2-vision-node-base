@@ -12,26 +12,30 @@ using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
 using SegmentCVNodeSrv = kenning_computer_vision_msgs::srv::SegmentCVNodeSrv;
 
 void BaseCVNode::communication_callback(
-    const SegmentCVNodeSrv::Request::SharedPtr request,
-    const SegmentCVNodeSrv::Response::SharedPtr response)
+    const std::shared_ptr<rmw_request_id_t> header,
+    const SegmentCVNodeSrv::Request::SharedPtr request)
 {
     using namespace kenning_computer_vision_msgs::runtime_message_type;
+    SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
     switch (request->message_type)
     {
     case MODEL:
         if (!prepare())
         {
-            response->message_type = ERROR;
+            response.message_type = ERROR;
             RCLCPP_ERROR(get_logger(), "Failed to prepare node. Closing.");
+            communication_service->send_response(*header, response);
             cleanup();
             unregisterNode();
             break;
         }
-        response->message_type = OK;
+        response.message_type = OK;
+        communication_service->send_response(*header, response);
         break;
     case ERROR:
-        response->message_type = ERROR;
+        response.message_type = ERROR;
         RCLCPP_ERROR(get_logger(), "Received ERROR message. Cleaning up.");
+        communication_service->send_response(*header, response);
         cleanup();
         unregisterNode();
         break;
@@ -39,43 +43,48 @@ void BaseCVNode::communication_callback(
         if (request->input.size() == 0)
         {
             RCLCPP_ERROR(get_logger(), "Received empty data");
-            response->message_type = ERROR;
+            response.message_type = ERROR;
+            communication_service->send_response(*header, response);
             break;
         }
         input_data = request->input;
-        response->message_type = OK;
+        response.message_type = OK;
+        communication_service->send_response(*header, response);
         break;
     case PROCESS:
         if (!preprocess(input_data))
         {
             RCLCPP_ERROR(get_logger(), "Preprocessing failed");
-            response->message_type = ERROR;
+            response.message_type = ERROR;
+            communication_service->send_response(*header, response);
             break;
         }
         if (!predict())
         {
             RCLCPP_ERROR(get_logger(), "Inference failed");
-            response->message_type = ERROR;
+            response.message_type = ERROR;
+            communication_service->send_response(*header, response);
             break;
         }
         output_data = postprocess();
-        response->message_type = OK;
+        response.message_type = OK;
+        communication_service->send_response(*header, response);
         input_data.clear();
         break;
     case OUTPUT:
         if (output_data.size() == 0)
         {
-            RCLCPP_ERROR(get_logger(), "No output data");
-            response->message_type = ERROR;
-            break;
+            RCLCPP_WARN(get_logger(), "[OUTPUT] No output data, returning empty message");
         }
-        response->output = output_data;
-        response->message_type = OK;
+        response.output = output_data;
+        response.message_type = OK;
         output_data.clear();
+        communication_service->send_response(*header, response);
         break;
     default:
         RCLCPP_ERROR(get_logger(), "Unknown message type. Aborting.");
-        response->message_type = ERROR;
+        response.message_type = ERROR;
+        communication_service->send_response(*header, response);
         break;
     }
 }
