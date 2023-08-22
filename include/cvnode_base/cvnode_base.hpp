@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 
@@ -49,11 +50,12 @@ private:
     /// Communication service.
     rclcpp::Service<kenning_computer_vision_msgs::srv::SegmentCVNodeSrv>::SharedPtr communication_service;
 
-    /// Input data
-    std::vector<sensor_msgs::msg::Image> input_data;
+    std::vector<sensor_msgs::msg::Image> input_data; ///< Input data
 
     /// Post-processed inference output
     std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> output_data;
+
+    std::mutex data_mutex; ///< Mutex for data access
 
 public:
     /**

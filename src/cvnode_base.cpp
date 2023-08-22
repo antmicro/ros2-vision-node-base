@@ -4,6 +4,7 @@
 
 #include "cvnode_base/cvnode_base.hpp"
 #include <kenning_computer_vision_msgs/runtime_msg_type.hpp>
+#include <thread>
 
 namespace cvnode_base
 {
@@ -47,31 +48,47 @@ void BaseCVNode::communication_callback(
             communication_service->send_response(*header, response);
             break;
         }
+        data_mutex.lock();
         input_data = request->input;
+        data_mutex.unlock();
         response.message_type = OK;
         communication_service->send_response(*header, response);
         break;
     case PROCESS:
-        if (!preprocess(input_data))
-        {
-            RCLCPP_ERROR(get_logger(), "Preprocessing failed");
-            response.message_type = ERROR;
-            communication_service->send_response(*header, response);
-            break;
-        }
-        if (!predict())
-        {
-            RCLCPP_ERROR(get_logger(), "Inference failed");
-            response.message_type = ERROR;
-            communication_service->send_response(*header, response);
-            break;
-        }
-        output_data = postprocess();
-        response.message_type = OK;
-        communication_service->send_response(*header, response);
-        input_data.clear();
+        std::thread(
+            [this, header]()
+            {
+                bool success;
+                SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
+                data_mutex.lock();
+                success = preprocess(input_data);
+                data_mutex.unlock();
+                if (!success)
+                {
+                    RCLCPP_ERROR(get_logger(), "Preprocessing failed");
+                    response.message_type = ERROR;
+                    communication_service->send_response(*header, response);
+                    return;
+                }
+                success = predict();
+                if (!success)
+                {
+                    RCLCPP_ERROR(get_logger(), "Inference failed");
+                    response.message_type = ERROR;
+                    communication_service->send_response(*header, response);
+                    return;
+                }
+                data_mutex.lock();
+                output_data = postprocess();
+                input_data.clear();
+                data_mutex.unlock();
+                response.message_type = OK;
+                communication_service->send_response(*header, response);
+            })
+            .detach();
         break;
     case OUTPUT:
+        data_mutex.lock();
         if (output_data.size() == 0)
         {
             RCLCPP_WARN(get_logger(), "[OUTPUT] No output data, returning empty message");
@@ -79,6 +96,7 @@ void BaseCVNode::communication_callback(
         response.output = output_data;
         response.message_type = OK;
         output_data.clear();
+        data_mutex.unlock();
         communication_service->send_response(*header, response);
         break;
     default:
