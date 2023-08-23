@@ -40,9 +40,26 @@ private:
         const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request);
 
     /**
+     * Runs preprocessing, inference and postprocessing.
+     * This function is called by the communication callback.
+     *
+     * @param header Header of the service request.
+     * @param request_id ID of the request.
+     */
+    void run_inference(const std::shared_ptr<rmw_request_id_t> header, const uint64_t request_id);
+
+    /**
+     * Reports error to the manager.
+     *
+     * @param header Header of the service request.
+     * @param error_msg Error message.
+     */
+    void report_error(const std::shared_ptr<rmw_request_id_t> header, const std::string &error_msg);
+
+    /**
      * Unregister node using the node management service.
      */
-    void unregisterNode();
+    void unregister_node();
 
     /// Client to manage the BaseCVNode.
     rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedPtr manage_client;
@@ -74,7 +91,7 @@ public:
      *
      * @param manage_node_name Name of the service to manage the node.
      */
-    void registerNode(const std::string &manage_node_name);
+    void register_node(const std::string &manage_node_name);
 
     /**
      * Prepare node and model for inference.
@@ -115,7 +132,7 @@ public:
     /**
      * Destructor.
      */
-    ~BaseCVNode() { unregisterNode(); }
+    ~BaseCVNode() { unregister_node(); }
 };
 
 } // namespace cvnode_base
