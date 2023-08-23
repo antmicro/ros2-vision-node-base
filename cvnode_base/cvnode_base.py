@@ -48,6 +48,12 @@ class BaseCVNode(Node):
         # Data access lock
         self._data_lock = Lock()
 
+        # Process access lock
+        self._process_lock = Lock()
+
+        # Id of request
+        self._request_id = 0
+
         super().__init__(node_name)
 
     def registerNode(self, manage_service_name: str):
@@ -95,7 +101,7 @@ class BaseCVNode(Node):
                         {response.message}')
                 return
 
-            self.get_logger().info('Register service call succeeded')
+            self.get_logger().debug('Register service call succeeded')
             return
 
         future = self._manage_node_client.call_async(request)
@@ -258,20 +264,35 @@ class BaseCVNode(Node):
 
         elif request_type == RuntimeMsgType.PROCESS:
             self._data_lock.acquire()
+            self._request_id += 1
+            this_task_id = self._request_id
             preprocessed = self.preprocess(self._input_data)
             self._data_lock.release()
             if not preprocessed:
                 return report_error(response, 'Preprocessing failed')
+            self._data_lock.acquire()
+            if this_task_id != self._request_id:
+                self._data_lock.release()
+                self.get_logger().debug('[PREPROCESS] Aborting processing')
+                return response
+            self._data_lock.release()
+            self._process_lock.acquire()
             predictions = self.predict(preprocessed)
+            self._process_lock.release()
             if not predictions:
                 return report_error(response, 'Inference failed')
             self._data_lock.acquire()
+            if this_task_id != self._request_id:
+                self._data_lock.release()
+                self.get_logger().debug('[PREDICT] Aborting processing')
+                return response
             self._output_data = self.postprocess(predictions)
             self._input_data = None
             self._data_lock.release()
 
         elif request_type == RuntimeMsgType.OUTPUT:
             self._data_lock.acquire()
+            self._request_id += 1
             if not self._output_data:
                 self.get_logger().warn('No output data to send')
             response._output = self._output_data
