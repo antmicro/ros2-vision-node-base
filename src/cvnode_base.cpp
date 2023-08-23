@@ -12,6 +12,11 @@ namespace cvnode_base
 using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
 using SegmentCVNodeSrv = kenning_computer_vision_msgs::srv::SegmentCVNodeSrv;
 
+BaseCVNode::BaseCVNode(const std::string &node_name, const rclcpp::NodeOptions &options) : Node(node_name, options)
+{
+    registerNode("node_manager/register");
+}
+
 void BaseCVNode::communication_callback(
     const std::shared_ptr<rmw_request_id_t> header,
     const SegmentCVNodeSrv::Request::SharedPtr request)

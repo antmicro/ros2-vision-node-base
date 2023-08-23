@@ -67,7 +67,7 @@ public:
      * @param node_name Name of the node.
      * @param options Node options.
      */
-    BaseCVNode(const std::string &node_name, const rclcpp::NodeOptions &options) : Node(node_name, options) {}
+    BaseCVNode(const std::string &node_name, const rclcpp::NodeOptions &options);
 
     /**
      * Register node using the node management service.
