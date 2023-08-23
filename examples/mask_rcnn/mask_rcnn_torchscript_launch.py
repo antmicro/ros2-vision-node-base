@@ -2,26 +2,40 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from launch_ros.actions import ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, Shutdown
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
     """Launches MaskRCNN node implemented in TorchScript."""
+
     model_path = DeclareLaunchArgument(
         'model_path',
         default_value='',
         description='Path to the TorchScript model file'
     )
-
     log_level = DeclareLaunchArgument(
         'log_level',
         default_value='INFO',
         description='Log level'
+    )
+    publish_visualizations = DeclareLaunchArgument(
+        'publish_visualizations',
+        default_value='False',
+        description='Publish visualizations'
+    )
+    scenario = DeclareLaunchArgument(
+        'scenario',
+        default_value='synthetic',
+        description='Testing scenario strategy'
+    )
+    inference_timeout_ms = DeclareLaunchArgument(
+        'inference_timeout_ms',
+        default_value="300",
+        description='Inference timeout in milliseconds'
     )
 
     mask_rcnn_node_container = ComposableNodeContainer(
@@ -54,6 +68,11 @@ def generate_launch_description():
                 package='cvnode_manager',
                 plugin='cvnode_manager::CVNodeManager',
                 name='sample_cvnode_manager',
+                parameters=[{
+                    'publish_visualizations': LaunchConfiguration('publish_visualizations'),    # noqa: E501
+                    'inference_timeout_ms': LaunchConfiguration('inference_timeout_ms'),        # noqa: E501
+                    'scenario': LaunchConfiguration('scenario'),
+                }],
             )
         ],
         output='both',
@@ -71,8 +90,11 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        model_path,
         log_level,
+        model_path,
+        publish_visualizations,
+        scenario,
+        inference_timeout_ms,
         mask_rcnn_node_container,
         cvnode_manager_node,
         kenning_node,

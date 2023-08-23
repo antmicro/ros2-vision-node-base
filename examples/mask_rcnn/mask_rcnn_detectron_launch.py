@@ -2,12 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from launch_ros.actions import ComposableNodeContainer, Node
-from launch_ros.descriptions import ComposableNode
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, Shutdown
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
@@ -17,6 +16,21 @@ def generate_launch_description():
         'log_level',
         default_value='INFO',
         description='Log level'
+    )
+    publish_visualizations = DeclareLaunchArgument(
+        'publish_visualizations',
+        default_value='False',
+        description='Publish visualizations'
+    )
+    scenario = DeclareLaunchArgument(
+        'scenario',
+        default_value='synthetic',
+        description='Testing scenario strategy'
+    )
+    inference_timeout_ms = DeclareLaunchArgument(
+        'inference_timeout_ms',
+        default_value="300",
+        description='Inference timeout in milliseconds'
     )
 
     mask_rcnn_node = Node(
@@ -36,7 +50,13 @@ def generate_launch_description():
             ComposableNode(
                 package='cvnode_manager',
                 plugin='cvnode_manager::CVNodeManager',
-                name='sample_cvnode_manager')
+                name='sample_cvnode_manager',
+                parameters=[{
+                    'publish_visualizations': LaunchConfiguration('publish_visualizations'),    # noqa: E501
+                    'inference_timeout_ms': LaunchConfiguration('inference_timeout_ms'),        # noqa: E501
+                    'scenario': LaunchConfiguration('scenario'),
+                }],
+            )
         ],
         output='both',
         arguments=['--ros-args',
@@ -53,8 +73,11 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        cvnode_manager_node,
+        inference_timeout_ms,
+        kenning_node,
         log_level,
         mask_rcnn_node,
-        cvnode_manager_node,
-        kenning_node,
+        publish_visualizations,
+        scenario,
     ])
