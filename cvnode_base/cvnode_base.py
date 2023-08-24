@@ -7,13 +7,11 @@
 from threading import Lock
 from typing import Any, List
 
-from kenning_computer_vision_msgs.msg import SegmentationMsg
+from kenning_computer_vision_msgs.msg import RuntimeMsgType, SegmentationMsg
 from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-
-from cvnode_base.helpers.runtime_msg_type import RuntimeMsgType
 
 
 class BaseCVNode(Node):
@@ -214,7 +212,7 @@ class BaseCVNode(Node):
         SegmentCVNodeSrv.Response :
             Response to the client with ERROR message type set.
         """
-        response.message_type = RuntimeMsgType.ERROR.value
+        response.message_type = RuntimeMsgType.ERROR
         self.get_logger().error(message)
         return response
 
@@ -240,26 +238,24 @@ class BaseCVNode(Node):
             Processed response for the communication service client.
         """
 
-        request_type = RuntimeMsgType(request.message_type)
-
-        if request_type == RuntimeMsgType.MODEL:
+        if request.message_type == RuntimeMsgType.MODEL:
             if not self.prepare():
                 return self.report_error(
                         response, '[MODEL] Failed to prepare node.')
-        elif request_type == RuntimeMsgType.DATA:
+        elif request.message_type == RuntimeMsgType.DATA:
             if not request.input:
                 return self.report_error(
                         response, '[DATA] Received empty data')
             self._data_lock.acquire()
             self._input_data = request.input
             self._data_lock.release()
-        elif request_type == RuntimeMsgType.PROCESS:
+        elif request.message_type == RuntimeMsgType.PROCESS:
             self._data_lock.acquire()
             self._request_id += 1
             this_task_id = self._request_id
             self._data_lock.release()
             return self._run_inference(response, this_task_id)
-        elif request_type == RuntimeMsgType.OUTPUT:
+        elif request.message_type == RuntimeMsgType.OUTPUT:
             self._data_lock.acquire()
             self._request_id += 1
             if not self._output_data:
@@ -267,7 +263,7 @@ class BaseCVNode(Node):
             response._output = self._output_data
             self._output_data = []
             self._data_lock.release()
-        elif request_type == RuntimeMsgType.ERROR:
+        elif request.message_type == RuntimeMsgType.ERROR:
             response = self.report_error(
                     response, '[ERROR] Received ERROR message. Cleaning up.')
             self.cleanup()
@@ -276,8 +272,9 @@ class BaseCVNode(Node):
         else:
             return self.report_error(
                     response,
-                    f'[UNKNOWN] Not supported message type: {request_type}')
-        response.message_type = RuntimeMsgType.OK.value
+                    '[UNKNOWN] Not supported message type: ' +
+                    request.message_type)
+        response.message_type = RuntimeMsgType.OK
         return response
 
     def _run_inference(self, response: SegmentCVNodeSrv.Response,
@@ -299,7 +296,7 @@ class BaseCVNode(Node):
         SegmentCVNodeSrv.Response :
             Response to the manager node.
         """
-        response.message_type = RuntimeMsgType.OK.value
+        response.message_type = RuntimeMsgType.OK
 
         # Preprocess
         self._data_lock.acquire()

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "cvnode_base/cvnode_base.hpp"
-#include <kenning_computer_vision_msgs/runtime_msg_type.hpp>
+#include <kenning_computer_vision_msgs/msg/runtime_msg_type.hpp>
 #include <thread>
 
 namespace cvnode_base
@@ -11,6 +11,7 @@ namespace cvnode_base
 
 using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
 using SegmentCVNodeSrv = kenning_computer_vision_msgs::srv::SegmentCVNodeSrv;
+using RuntimeMsgType = kenning_computer_vision_msgs::msg::RuntimeMsgType;
 
 BaseCVNode::BaseCVNode(const std::string &node_name, const rclcpp::NodeOptions &options) : Node(node_name, options)
 {
@@ -21,11 +22,10 @@ void BaseCVNode::communication_callback(
     const std::shared_ptr<rmw_request_id_t> header,
     const SegmentCVNodeSrv::Request::SharedPtr request)
 {
-    using namespace kenning_computer_vision_msgs::runtime_message_type;
     SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
     switch (request->message_type)
     {
-    case MODEL:
+    case RuntimeMsgType::MODEL:
         if (!prepare())
         {
             report_error(header, "[MODEL] Failed to prepare node.");
@@ -33,15 +33,15 @@ void BaseCVNode::communication_callback(
             unregister_node();
             break;
         }
-        response.message_type = OK;
+        response.message_type = RuntimeMsgType::OK;
         communication_service->send_response(*header, response);
         break;
-    case ERROR:
+    case RuntimeMsgType::ERROR:
         report_error(header, "[ERROR] Received ERROR message");
         cleanup();
         unregister_node();
         break;
-    case DATA:
+    case RuntimeMsgType::DATA:
         if (request->input.size() == 0)
         {
             report_error(header, "[DATA] Received empty data");
@@ -50,19 +50,19 @@ void BaseCVNode::communication_callback(
         data_mutex.lock();
         input_data = request->input;
         data_mutex.unlock();
-        response.message_type = OK;
+        response.message_type = RuntimeMsgType::OK;
         communication_service->send_response(*header, response);
         break;
-    case PROCESS:
+    case RuntimeMsgType::PROCESS:
         data_mutex.lock();
         process_request_id++;
         std::thread(std::bind(&BaseCVNode::run_inference, this, header, process_request_id)).detach();
         data_mutex.unlock();
         break;
-    case OUTPUT:
+    case RuntimeMsgType::OUTPUT:
         data_mutex.lock();
         process_request_id++;
-        response.message_type = OK;
+        response.message_type = RuntimeMsgType::OK;
         if (output_data.size() == 0)
         {
             RCLCPP_DEBUG(get_logger(), "[OUTPUT] No output data, returning empty message");
@@ -121,14 +121,14 @@ void BaseCVNode::run_inference(const std::shared_ptr<rmw_request_id_t> header, c
     data_mutex.unlock();
 
     SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
-    response.message_type = kenning_computer_vision_msgs::runtime_message_type::OK;
+    response.message_type = RuntimeMsgType::OK;
     communication_service->send_response(*header, response);
 }
 
 void BaseCVNode::report_error(const std::shared_ptr<rmw_request_id_t> header, const std::string &message)
 {
     SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
-    response.message_type = kenning_computer_vision_msgs::runtime_message_type::ERROR;
+    response.message_type = RuntimeMsgType::ERROR;
     RCLCPP_ERROR(get_logger(), "%s", message.c_str());
     communication_service->send_response(*header, response);
 }
