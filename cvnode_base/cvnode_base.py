@@ -72,9 +72,9 @@ class BaseCVNode(Node):
 
         self._manage_node_client = self.create_client(ManageCVNode,
                                                       manage_service_name)
-
         if not self._manage_node_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().error('Node manage service not available')
+            self.get_logger().error(
+                    '[REGISTER] Node manage service not available')
             return
 
         communication_service_name = f'{self.get_name()}/communication'
@@ -95,15 +95,17 @@ class BaseCVNode(Node):
         def register_callback(future):
             response = future.result()
             if not response:
-                self.get_logger().error('Service call failed.')
+                self.get_logger().error('[REGISTER] Service call failed.')
                 return
 
             if not response.status:
-                self.get_logger().error(f'Register service call failed: \
-                        {response.message}')
+                error_msg = '[REGISTER] Register service call failed: ' + \
+                        response.message
+                self.get_logger().error(error_msg)
                 return
 
-            self.get_logger().debug('Register service call succeeded')
+            self.get_logger().debug(
+                    '[REGISTER] Register service call succeeded')
             return
 
         future = self._manage_node_client.call_async(request)
@@ -185,13 +187,36 @@ class BaseCVNode(Node):
         raise NotImplementedError
 
     def _unregisterNode(self):
-        """Unregister node with service."""
+        """
+        Unregister node with service.
+        """
         request = ManageCVNode.Request()
         request.type = request.UNREGISTER
         request.node_name = self.get_name()
 
         self._manage_node_client.call_async(request)
         self._manage_node_client = None
+
+    def report_error(self, response: SegmentCVNodeSrv.Response,
+                     message: str) -> SegmentCVNodeSrv.Response:
+        """
+        Report error to the client.
+
+        Parameters
+        ----------
+        response : SegmentCVNodeSrv.Response
+            Response to the client.
+        message : str
+            Error message to be logged.
+
+        Returns
+        -------
+        SegmentCVNodeSrv.Response :
+            Response to the client with ERROR message type set.
+        """
+        response.message_type = RuntimeMsgType.ERROR.value
+        self.get_logger().error(message)
+        return response
 
     def _communicationCallback(self, request: SegmentCVNodeSrv.Request,
                                response: SegmentCVNodeSrv.Response
@@ -215,94 +240,95 @@ class BaseCVNode(Node):
             Processed response for the communication service client.
         """
 
-        def report_error(response: SegmentCVNodeSrv.Response,
-                         message: str) -> SegmentCVNodeSrv.Response:
-            """
-            Report error to the client.
-
-            Parameters
-            ----------
-            response : SegmentCVNodeSrv.Response
-                Response to the client.
-            message : str
-                Error message to be logged.
-
-            Returns
-            -------
-            SegmentCVNodeSrv.Response :
-                Response to the client with ERROR code.
-            """
-            nonlocal self
-            response.message_type = RuntimeMsgType.ERROR.value
-            self.get_logger().error(message)
-            return response
-
         request_type = RuntimeMsgType(request.message_type)
 
-        if request_type == RuntimeMsgType.OK:
+        if request_type == RuntimeMsgType.MODEL:
             if not self.prepare():
-                response = report_error(response, 'Failed to prepare node.')
-                self.cleanup()
-                self._unregisterNode()
-                return response
-
-        elif request_type == RuntimeMsgType.ERROR:
-            response = report_error(response, 'Received ERROR message. ' +
-                                    'Cleaning up.')
-            self.cleanup()
-            self._unregisterNode()
-            return response
-
-        elif request_type == RuntimeMsgType.MODEL:
-            if not self.prepare():
-                return report_error(response, 'Failed to prepare node.')
-
+                return self.report_error(
+                        response, '[MODEL] Failed to prepare node.')
         elif request_type == RuntimeMsgType.DATA:
             if not request.input:
-                return report_error(response, 'Received empty data')
+                return self.report_error(
+                        response, '[DATA] Received empty data')
             self._data_lock.acquire()
             self._input_data = request.input
             self._data_lock.release()
-
         elif request_type == RuntimeMsgType.PROCESS:
             self._data_lock.acquire()
             self._request_id += 1
             this_task_id = self._request_id
-            preprocessed = self.preprocess(self._input_data)
             self._data_lock.release()
-            if not preprocessed:
-                return report_error(response, 'Preprocessing failed')
-            self._data_lock.acquire()
-            if this_task_id != self._request_id:
-                self._data_lock.release()
-                self.get_logger().debug('[PREPROCESS] Aborting processing')
-                return response
-            self._data_lock.release()
-            self._process_lock.acquire()
-            predictions = self.predict(preprocessed)
-            self._process_lock.release()
-            if not predictions:
-                return report_error(response, 'Inference failed')
-            self._data_lock.acquire()
-            if this_task_id != self._request_id:
-                self._data_lock.release()
-                self.get_logger().debug('[PREDICT] Aborting processing')
-                return response
-            self._output_data = self.postprocess(predictions)
-            self._input_data = None
-            self._data_lock.release()
-
+            return self._run_inference(response, this_task_id)
         elif request_type == RuntimeMsgType.OUTPUT:
             self._data_lock.acquire()
             self._request_id += 1
             if not self._output_data:
-                self.get_logger().warn('No output data to send')
+                self.get_logger().debug('[OUTPUT] No output data to send')
             response._output = self._output_data
             self._output_data = []
             self._data_lock.release()
-
+        elif request_type == RuntimeMsgType.ERROR:
+            response = self.report_error(
+                    response, '[ERROR] Received ERROR message. Cleaning up.')
+            self.cleanup()
+            self._unregisterNode()
+            return response
         else:
-            return report_error(response,
-                                f'Unknown message type: {request_type}')
+            return self.report_error(
+                    response,
+                    f'[UNKNOWN] Not supported message type: {request_type}')
         response.message_type = RuntimeMsgType.OK.value
+        return response
+
+    def _run_inference(self, response: SegmentCVNodeSrv.Response,
+                       task_id: int) -> SegmentCVNodeSrv.Response:
+        """
+        Executes inference stages and returns response.
+
+        Aborts if task_id does not match the current request_id.
+
+        Parameters
+        ----------
+        response : SegmentCVNodeSrv.Response
+            Response to the manager node.
+        task_id : int
+            Task id of the inference request.
+
+        Returns
+        -------
+        SegmentCVNodeSrv.Response :
+            Response to the manager node.
+        """
+        response.message_type = RuntimeMsgType.OK.value
+
+        # Preprocess
+        self._data_lock.acquire()
+        preprocessed = self.preprocess(self._input_data)
+        self._data_lock.release()
+        if not preprocessed:
+            return self.report_error(
+                    response, '[PREPROCESS] Preprocessing failed')
+        self._data_lock.acquire()
+        if task_id != self._request_id:
+            self._data_lock.release()
+            self.get_logger().debug('[PREPROCESS] Aborting processing')
+            return response
+        self._data_lock.release()
+
+        # Predict
+        self._process_lock.acquire()
+        predictions = self.predict(preprocessed)
+        self._process_lock.release()
+        if not predictions:
+            return self.report_error(response, '[PREDICT] Inference failed')
+        self._data_lock.acquire()
+        if task_id != self._request_id:
+            self._data_lock.release()
+            self.get_logger().debug('[PREDICT] Aborting processing')
+            return response
+
+        # Postprocess
+        self._output_data = self.postprocess(predictions)
+        self._input_data = None
+        self._data_lock.release()
         return response
