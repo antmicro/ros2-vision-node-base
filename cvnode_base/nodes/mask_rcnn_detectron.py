@@ -49,6 +49,25 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """Initialize node."""
         super().__init__(node_name='mask_rcnn_detectron_node')
 
+    def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
+        """
+        Run inference on the input data.
+
+        Parameters
+        ----------
+        X : List[Image]
+            List of input image messages.
+
+        Returns
+        -------
+        List[SegmentationMsg] :
+            List of postprocessed segmentation messages.
+        """
+        input_data = self.preprocess(X)
+        predictions = self.predict(input_data)
+        input_data = None
+        return self.postprocess(predictions, X)
+
     def prepare(self) -> bool:
         """
         Prepare node for execution.
@@ -87,10 +106,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
             Preprocessed data compatible with the model.
         """
         Y = []
-        self.frames = []
         for msg in X:
             img = self.convert_image_format(msg.data, msg.encoding)
-            self.frames.append(msg)
             height = msg.height
             width = msg.width
             img = np.reshape(img, (height, width, -1))
@@ -116,7 +133,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """
         return [self.model([x])[0] for x in X]
 
-    def postprocess(self, Y: List[Dict]) -> List[SegmentationMsg]:
+    def postprocess(self, Y: List[Dict], images: List[Image]
+                    ) -> List[SegmentationMsg]:
         """
         Postprocess model predictions.
 
@@ -124,6 +142,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
         ----------
         Y : List[Dict]
             Model predictions.
+        images : List[Image]
+            List of input image messages.
 
         Returns
         -------
@@ -133,7 +153,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
         X = []
         for i, prediction in enumerate(Y):
             msg = SegmentationMsg()
-            msg._frame = self.frames[i]
+            msg._frame = images[i]
             prediction = prediction['instances']
             scores = prediction.scores.cpu().detach().numpy()
 

@@ -47,29 +47,31 @@ void BaseCVNode::communication_callback(
             report_error(header, "[DATA] Received empty data");
             break;
         }
-        data_mutex.lock();
-        input_data = request->input;
-        data_mutex.unlock();
+        {
+            std::lock_guard<std::mutex> lock(input_data_mutex);
+            input_data = request->input;
+        }
         response.message_type = RuntimeMsgType::OK;
         communication_service->send_response(*header, response);
         break;
     case RuntimeMsgType::PROCESS:
-        data_mutex.lock();
-        process_request_id++;
-        std::thread(std::bind(&BaseCVNode::run_inference, this, header, process_request_id)).detach();
-        data_mutex.unlock();
+        std::thread(std::bind(&BaseCVNode::_run_inference, this, header)).detach();
         break;
     case RuntimeMsgType::OUTPUT:
-        data_mutex.lock();
-        process_request_id++;
-        response.message_type = RuntimeMsgType::OK;
+    {
+        std::lock_guard<std::mutex> lock(output_data_mutex);
+        {
+            std::lock_guard<std::mutex> lock(request_id_mutex);
+            request_id += 1;
+        }
         if (output_data.size() == 0)
         {
             RCLCPP_DEBUG(get_logger(), "[OUTPUT] No output data, returning empty message");
         }
         response.output = output_data;
         output_data.clear();
-        data_mutex.unlock();
+    }
+        response.message_type = RuntimeMsgType::OK;
         communication_service->send_response(*header, response);
         break;
     default:
@@ -78,48 +80,46 @@ void BaseCVNode::communication_callback(
     }
 }
 
-void BaseCVNode::run_inference(const std::shared_ptr<rmw_request_id_t> header, const uint64_t request_id)
+void BaseCVNode::_run_inference(const std::shared_ptr<rmw_request_id_t> header)
 {
-    // Preprocess
-    data_mutex.lock();
-    bool success = preprocess(input_data);
-    data_mutex.unlock();
-    if (!success)
+    using SegmentationMsg = kenning_computer_vision_msgs::msg::SegmentationMsg;
+    uint64_t tmp_request_id;
+    std::vector<sensor_msgs::msg::Image> tmp_input_data;
+    std::vector<SegmentationMsg> tmp_output_data;
     {
-        report_error(header, "[PREPROCESS] Failure in preprocessing");
-        return;
+        std::lock_guard<std::mutex> lock(request_id_mutex);
+        request_id += 1;
+        tmp_request_id = request_id;
     }
-    data_mutex.lock();
-    if (request_id != process_request_id)
     {
-        data_mutex.unlock();
-        RCLCPP_DEBUG(get_logger(), "[PREDICT] Request id mismatch. Aborting further processing.");
-        return;
+        std::lock_guard<std::mutex> lock(input_data_mutex);
+        tmp_input_data = input_data;
+        input_data.clear();
     }
-    data_mutex.unlock();
-
-    // Predict
-    process_mutex.lock();
-    success = predict();
-    process_mutex.unlock();
-    if (!success)
     {
-        report_error(header, "[PREDICT] Failure in prediction");
-        return;
+        std::lock_guard<std::mutex> lock(process_mutex);
+        {
+            std::lock_guard<std::mutex> lock(request_id_mutex);
+            if (tmp_request_id != request_id)
+            {
+                RCLCPP_DEBUG(get_logger(), "[PREDICT] Request id mismatch. Aborting further processing.");
+                return;
+            }
+        }
+        tmp_output_data = run_inference(tmp_input_data);
     }
-    data_mutex.lock();
-    if (request_id != process_request_id)
     {
-        data_mutex.unlock();
-        RCLCPP_DEBUG(get_logger(), "[POSTPROCESS] Request id mismatch. Aborting further processing.");
-        return;
+        std::lock_guard<std::mutex> lock(output_data_mutex);
+        {
+            std::lock_guard<std::mutex> lock(request_id_mutex);
+            if (tmp_request_id != request_id)
+            {
+                RCLCPP_DEBUG(get_logger(), "[POSTPROCESS] Request id mismatch. Aborting further processing.");
+                return;
+            }
+        }
+        output_data = tmp_output_data;
     }
-
-    // Postprocess
-    output_data = postprocess();
-    input_data.clear();
-    data_mutex.unlock();
-
     SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
     response.message_type = RuntimeMsgType::OK;
     communication_service->send_response(*header, response);

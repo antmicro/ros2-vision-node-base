@@ -40,13 +40,11 @@ private:
         const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request);
 
     /**
-     * Runs preprocessing, inference and postprocessing.
-     * This function is called by the communication callback.
+     * Executes inference.
      *
      * @param header Header of the service request.
-     * @param request_id ID of the request.
      */
-    void run_inference(const std::shared_ptr<rmw_request_id_t> header, const uint64_t request_id);
+    void _run_inference(const std::shared_ptr<rmw_request_id_t> header);
 
     /**
      * Reports error to the manager.
@@ -72,10 +70,12 @@ private:
     /// Post-processed inference output
     std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> output_data;
 
-    std::mutex data_mutex;    ///< Mutex for data access
-    std::mutex process_mutex; ///< Mutex for processing access
+    std::mutex input_data_mutex;  ///< Mutex for input data access
+    std::mutex output_data_mutex; ///< Mutex for output data access
+    std::mutex request_id_mutex;  ///< Mutex for request ID access
+    std::mutex process_mutex;     ///< Mutex for processing access
 
-    uint64_t process_request_id = 0; ///< ID incremented for each request
+    uint64_t request_id = 0; ///< ID incremented for each request
 
 public:
     /**
@@ -101,28 +101,14 @@ public:
     virtual bool prepare() = 0;
 
     /**
-     * Preprocess images for inference.
+     * Run inference on the input data.
      *
-     * @param images Vector of images to preprocess.
+     * @param X Input data.
      *
-     * @return True if preprocessing was successful, false otherwise.
+     * @return Inference output.
      */
-    virtual bool preprocess(std::vector<sensor_msgs::msg::Image> &images) = 0;
-
-    /**
-     * Run inference.
-     * This function is called after preprocess stage.
-     *
-     * @return True if inference was successful, false otherwise.
-     */
-    virtual bool predict() = 0;
-
-    /**
-     * Post-process inference results.
-     *
-     * @return Vector of segmentation results.
-     */
-    virtual std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> postprocess() = 0;
+    virtual std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
+    run_inference(std::vector<sensor_msgs::msg::Image> &X) = 0;
 
     /**
      * Cleanup allocated model resources.

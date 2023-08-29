@@ -51,10 +51,6 @@ private:
     torch::jit::script::Module model;                       ///< TorchScript model
     c10::Device device = c10::Device(c10::DeviceType::CPU); ///< Device to run inference on
 
-    std::vector<sensor_msgs::msg::Image> frames; ///< Input images
-    std::vector<c10::IValue> inputs;             ///< Preprocessed input images
-    std::vector<MaskRCNNOutputs> predictions;    ///< Inference outputs
-
     /// Class names
     std::vector<std::string> class_names{"person",        "bicycle",      "car",
                                          "motorcycle",    "airplane",     "bus",
@@ -100,27 +96,43 @@ public:
     bool prepare() override;
 
     /**
+     * Run inference on input images.
+     *
+     * @param X Vector of input images.
+     *
+     * @return Vector of instance segmentation results.
+     */
+    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
+    run_inference(std::vector<sensor_msgs::msg::Image> &X) override;
+
+    /**
      * Preprocess images for inference.
      *
      * @param images Vector of images to preprocess.
      *
-     * @return True if successful, false otherwise.
+     * @return Preprocessed input data.
      */
-    bool preprocess(std::vector<sensor_msgs::msg::Image> &images) override;
+    std::vector<c10::IValue> preprocess(std::vector<sensor_msgs::msg::Image> &images);
 
     /**
      * Run inference on preprocessed images.
      *
-     * @return True if successful, false otherwise.
+     * @param inputs Vector of preprocessed input data.
+     *
+     * @return Vector of inference outputs.
      */
-    bool predict() override;
+    std::vector<MaskRCNNOutputs> predict(std::vector<c10::IValue> &inputs);
 
     /**
      * Postprocess inference results.
      *
+     * @param predictions Vector of inference outputs.
+     * @param images Vector of input images.
+     *
      * @return Vector of instance segmentation results.
      */
-    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> postprocess() override;
+    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
+    postprocess(std::vector<MaskRCNNOutputs> &predictions, std::vector<sensor_msgs::msg::Image> &images);
 
     /**
      * Cleanup allocated model resources.

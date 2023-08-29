@@ -50,24 +50,31 @@ bool MaskRCNNTorchScript::prepare()
     return true;
 }
 
-bool MaskRCNNTorchScript::preprocess(std::vector<sensor_msgs::msg::Image> &images)
+std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
+MaskRCNNTorchScript::run_inference(std::vector<sensor_msgs::msg::Image> &X)
 {
+    std::vector<c10::IValue> inputs = preprocess(X);
+    std::vector<MaskRCNNOutputs> outputs = predict(inputs);
     inputs.clear();
-    frames.clear();
-    frames = images;
-    for (auto &frame : frames)
+    return postprocess(outputs, X);
+}
+
+std::vector<c10::IValue> MaskRCNNTorchScript::preprocess(std::vector<sensor_msgs::msg::Image> &images)
+{
+    std::vector<c10::IValue> inputs;
+    for (auto &frame : images)
     {
         cv::Mat cv_image = imageToMat(frame, "bgr8");
         torch::Tensor tensor_image = torch::from_blob(cv_image.data, {cv_image.rows, cv_image.cols, 3}, torch::kUInt8);
         tensor_image = tensor_image.to(device, torch::kFloat).permute({2, 0, 1}).contiguous();
         inputs.push_back(tensor_image);
     }
-    return true;
+    return inputs;
 }
 
-bool MaskRCNNTorchScript::predict()
+std::vector<MaskRCNNOutputs> MaskRCNNTorchScript::predict(std::vector<c10::IValue> &inputs)
 {
-    predictions.clear();
+    std::vector<MaskRCNNOutputs> predictions;
     for (auto &input : inputs)
     {
         c10::IValue output = model.forward({input});
@@ -83,10 +90,12 @@ bool MaskRCNNTorchScript::predict()
             tuple_outputs[3].toTensor().to(torch::kCPU)};
         predictions.push_back(model_output);
     }
-    return true;
+    return predictions;
 }
 
-std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess()
+std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess(
+    std::vector<MaskRCNNOutputs> &predictions,
+    std::vector<sensor_msgs::msg::Image> &images)
 {
     using MaskMsg = kenning_computer_vision_msgs::msg::MaskMsg;
     using BoxMsg = kenning_computer_vision_msgs::msg::BoxMsg;
@@ -96,7 +105,7 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
     for (size_t i = 0; i < predictions.size(); i++)
     {
         output = predictions.at(i);
-        msg.frame = frames.at(i);
+        msg.frame = images.at(i);
         std::transform(
             output.classes.data_ptr<int64_t>(),
             output.classes.data_ptr<int64_t>() + output.classes.numel(),
@@ -111,15 +120,15 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
             cv::Mat mask = paste_mask(
                 output.masks.select(0, j),
                 output.boxes.select(0, j),
-                frames.at(i).height,
-                frames.at(i).width);
+                images.at(i).height,
+                images.at(i).width);
             mask_msg.dimension.push_back(mask.rows);
             mask_msg.dimension.push_back(mask.cols);
             mask_msg.data = std::vector<uint8_t>(mask.data, mask.data + mask.total());
             msg.masks.push_back(mask_msg);
         }
-        const c10::Scalar width = c10::Scalar(static_cast<float>(frames.at(i).width));
-        const c10::Scalar height = c10::Scalar(static_cast<float>(frames.at(i).height));
+        const c10::Scalar width = c10::Scalar(static_cast<float>(images.at(i).width));
+        const c10::Scalar height = c10::Scalar(static_cast<float>(images.at(i).height));
         output.boxes.select(1, 0).div_(width);
         output.boxes.select(1, 1).div_(height);
         output.boxes.select(1, 2).div_(width);
@@ -141,9 +150,6 @@ std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScr
 
 void MaskRCNNTorchScript::cleanup()
 {
-    inputs.clear();
-    frames.clear();
-    predictions.clear();
     model = torch::jit::script::Module();
     device = torch::Device(torch::kCPU);
 }

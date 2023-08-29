@@ -5,7 +5,7 @@
 """Base class for computer vision nodes."""
 
 from threading import Lock
-from typing import Any, List
+from typing import List
 
 from kenning_computer_vision_msgs.msg import RuntimeMsgType, SegmentationMsg
 from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
@@ -43,8 +43,14 @@ class BaseCVNode(Node):
         # Stores model output data
         self._output_data = []
 
-        # Data access lock
-        self._data_lock = Lock()
+        # Output data lock
+        self._output_data_lock = Lock()
+
+        # Input data lock
+        self._input_data_lock = Lock()
+
+        # Request id increment lock
+        self._request_id_lock = Lock()
 
         # Process access lock
         self._process_lock = Lock()
@@ -130,9 +136,9 @@ class BaseCVNode(Node):
         """
         raise NotImplementedError
 
-    def preprocess(self, X: List[Image]) -> List[Any]:
+    def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
         """
-        Preprocess input data.
+        Run inference on the input data.
 
         Parameters
         ----------
@@ -141,42 +147,47 @@ class BaseCVNode(Node):
 
         Returns
         -------
-        List[Any] :
-            Preprocessed data compatible with model inputs.
-        """
-        raise NotImplementedError
-
-    def predict(self, X: List[Any]) -> List[Any]:
-        """
-        Run inference on the input data.
-
-        Parameters
-        ----------
-        X : List[Any]
-            Preprocessed input data.
-
-        Returns
-        -------
-        List[Any] :
-            Model predictions compatible with post processing stage.
-        """
-        raise NotImplementedError
-
-    def postprocess(self, X: List[Any]) -> List[SegmentationMsg]:
-        """
-        Postprocess model predictions.
-
-        Parameters
-        ----------
-        X : List[Any]
-            Model predictions.
-
-        Returns
-        -------
         List[SegmentationMsg] :
             List of postprocessed segmentation messages.
         """
         raise NotImplementedError
+
+    def _run_inference(self) -> SegmentCVNodeSrv.Response:
+        """
+        Executes inference stages and returns response.
+
+        Returns
+        -------
+        SegmentCVNodeSrv.Response :
+            Response to the manager node.
+        """
+        response = SegmentCVNodeSrv.Response()
+        response.message_type = RuntimeMsgType.OK
+
+        with self._request_id_lock:
+            self._request_id += 1
+            tmp_request_id = self._request_id
+        with self._input_data_lock:
+            tmp_input_data = self._input_data
+            self._input_data = []
+
+        if not tmp_input_data:
+            return self.report_error(
+                    SegmentCVNodeSrv.Response(),
+                    '[PREDICT] Received empty input data')
+
+        with self._process_lock:
+            with self._request_id_lock:
+                if tmp_request_id != self._request_id:
+                    return response
+            output = self.run_inference(tmp_input_data)
+
+        with self._output_data_lock:
+            with self._request_id_lock:
+                if tmp_request_id != self._request_id:
+                    return response
+            self._output_data = output
+            return response
 
     def cleanup(self):
         """
@@ -246,23 +257,18 @@ class BaseCVNode(Node):
             if not request.input:
                 return self.report_error(
                         response, '[DATA] Received empty data')
-            self._data_lock.acquire()
-            self._input_data = request.input
-            self._data_lock.release()
+            with self._input_data_lock:
+                self._input_data = request.input
         elif request.message_type == RuntimeMsgType.PROCESS:
-            self._data_lock.acquire()
-            self._request_id += 1
-            this_task_id = self._request_id
-            self._data_lock.release()
-            return self._run_inference(response, this_task_id)
+            return self._run_inference()
         elif request.message_type == RuntimeMsgType.OUTPUT:
-            self._data_lock.acquire()
-            self._request_id += 1
-            if not self._output_data:
-                self.get_logger().debug('[OUTPUT] No output data to send')
-            response._output = self._output_data
-            self._output_data = []
-            self._data_lock.release()
+            with self._output_data_lock:
+                with self._request_id_lock:
+                    self._request_id += 1
+                if not self._output_data:
+                    self.get_logger().debug('[OUTPUT] No output data to send')
+                response._output = self._output_data
+                self._output_data = []
         elif request.message_type == RuntimeMsgType.ERROR:
             response = self.report_error(
                     response, '[ERROR] Received ERROR message. Cleaning up.')
@@ -275,57 +281,4 @@ class BaseCVNode(Node):
                     '[UNKNOWN] Not supported message type: ' +
                     request.message_type)
         response.message_type = RuntimeMsgType.OK
-        return response
-
-    def _run_inference(self, response: SegmentCVNodeSrv.Response,
-                       task_id: int) -> SegmentCVNodeSrv.Response:
-        """
-        Executes inference stages and returns response.
-
-        Aborts if task_id does not match the current request_id.
-
-        Parameters
-        ----------
-        response : SegmentCVNodeSrv.Response
-            Response to the manager node.
-        task_id : int
-            Task id of the inference request.
-
-        Returns
-        -------
-        SegmentCVNodeSrv.Response :
-            Response to the manager node.
-        """
-        response.message_type = RuntimeMsgType.OK
-
-        # Preprocess
-        self._data_lock.acquire()
-        preprocessed = self.preprocess(self._input_data)
-        self._data_lock.release()
-        if not preprocessed:
-            return self.report_error(
-                    response, '[PREPROCESS] Preprocessing failed')
-        self._data_lock.acquire()
-        if task_id != self._request_id:
-            self._data_lock.release()
-            self.get_logger().debug('[PREPROCESS] Aborting processing')
-            return response
-        self._data_lock.release()
-
-        # Predict
-        self._process_lock.acquire()
-        predictions = self.predict(preprocessed)
-        self._process_lock.release()
-        if not predictions:
-            return self.report_error(response, '[PREDICT] Inference failed')
-        self._data_lock.acquire()
-        if task_id != self._request_id:
-            self._data_lock.release()
-            self.get_logger().debug('[PREDICT] Aborting processing')
-            return response
-
-        # Postprocess
-        self._output_data = self.postprocess(predictions)
-        self._input_data = None
-        self._data_lock.release()
         return response
