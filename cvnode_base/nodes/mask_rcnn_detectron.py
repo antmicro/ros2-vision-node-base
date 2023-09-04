@@ -4,6 +4,7 @@
 
 """CVNode with Mask R-CNN model from Detectron2 framework."""
 
+from gc import collect
 from typing import Dict, List
 
 import cv2
@@ -188,12 +189,9 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """
         Cleanup allocated resources used by the node.
         """
-        if (self.model):
-            del self.model
-            self.model = None
-        if (self.aug):
-            del self.aug
-            self.aug = None
+        del self.model
+        del self.aug
+        collect()
 
     def convert_image_format(self, image: np.ndarray, encoding: str
                              ) -> np.ndarray:
