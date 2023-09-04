@@ -17,8 +17,9 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(kenning_computer_vision_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
+
+find_package(OpenCV REQUIRED)
 
 include_directories(include)
 
@@ -58,10 +59,11 @@ target_link_libraries(basecvnode
 
 if (BUILD_MASK_RCNN_TORCHSCRIPT)
     # Node dependencies
+    find_package(rcl_interfaces REQUIRED)
+    find_package(rclcpp_components REQUIRED)
+
     find_package(Torch REQUIRED)
     find_package(TorchVision REQUIRED)
-    find_package(rclcpp_components REQUIRED)
-    find_package(rcl_interfaces REQUIRED)
 
     add_library(mask_rcnn_torchscript_node SHARED
         src/nodes/mask_rcnn_torchscript.cpp
