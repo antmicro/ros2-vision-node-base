@@ -32,6 +32,11 @@ def generate_launch_description():
         default_value="300",
         description='Inference timeout in milliseconds'
     )
+    preserve_output = DeclareLaunchArgument(
+            'preserver_output',
+            default_value='True',
+            description='Indicates whether manager should save output'
+    )
 
     mask_rcnn_node = Node(
             package='cvnode_base',
@@ -55,6 +60,7 @@ def generate_launch_description():
                     'publish_visualizations': LaunchConfiguration('publish_visualizations'),    # noqa: E501
                     'inference_timeout_ms': LaunchConfiguration('inference_timeout_ms'),        # noqa: E501
                     'scenario': LaunchConfiguration('scenario'),
+                    'preserve_output': LaunchConfiguration('preserve_output'),
                 }],
             )
         ],
@@ -62,6 +68,22 @@ def generate_launch_description():
         arguments=['--ros-args',
                    '--log-level', LaunchConfiguration('log_level')],
         on_exit=Shutdown()
+    )
+
+    cvnode_manager_gui_node = ComposableNodeContainer(
+            name='cvnode_manager_gui_container',
+            namespace='',
+            package='rclcpp_components',
+            executable='component_container',
+            composable_node_descriptions=[
+                ComposableNode(
+                    package='cvnode_manager',
+                    plugin='cvnode_manager::gui::CVNodeManagerGUI',
+                    name='cvnode_manager_gui',
+                ),
+            ],
+            output='both',
+            on_exit=Shutdown(),
     )
 
     kenning_node = ExecuteProcess(
@@ -73,11 +95,13 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        cvnode_manager_gui_node,
         cvnode_manager_node,
         inference_timeout_ms,
         kenning_node,
         log_level,
         mask_rcnn_node,
+        preserve_output,
         publish_visualizations,
         scenario,
     ])
