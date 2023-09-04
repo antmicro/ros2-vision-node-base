@@ -4,11 +4,14 @@
 
 """CVNode with Mask R-CNN model from Detectron2 framework."""
 
+import csv
+import os
 from gc import collect
 from typing import Dict, List
 
 import cv2
 import numpy as np
+import rclpy
 from detectron2 import model_zoo
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
@@ -24,31 +27,10 @@ from cvnode_base.cvnode_base import BaseCVNode
 class MaskRCNNDetectronNode(BaseCVNode):
     """The Detectron2 implementation of a Mask R-CNN model in a CVNode."""
 
-    classes = ('person', 'bicycle', 'car', 'motorcycle',
-               'airplane', 'bus', 'train', 'truck',
-               'boat', 'traffic light', 'fire hydrant', 'stop sign',
-               'parking meter', 'bench', 'bird', 'cat',
-               'dog', 'horse', 'sheep', 'cow',
-               'elephant', 'bear', 'zebra', 'giraffe',
-               'backpack', 'umbrella', 'handbag', 'tie',
-               'suitcase', 'frisbee', 'skis', 'snowboard',
-               'sports ball', 'kite', 'baseball bat', 'baseball glove',
-               'skateboard', 'surfboard', 'tennis racket', 'bottle',
-               'wine glass', 'cup', 'fork', 'knife',
-               'spoon', 'bowl', 'banana', 'apple',
-               'sandwich', 'orange', 'broccoli', 'carrot',
-               'hot dog', 'pizza', 'donut', 'cake',
-               'chair', 'couch', 'potted plant', 'bed',
-               'dining table', 'toilet', 'tv', 'laptop',
-               'mouse', 'remote', 'keyboard', 'cell phone',
-               'microwave', 'oven', 'toaster', 'sink',
-               'refrigerator', 'book', 'clock', 'vase',
-               'scissors', 'teddy bear', 'hair drier', 'toothbrush',
-               )
-
     def __init__(self):
         """Initialize node."""
         super().__init__(node_name='mask_rcnn_detectron_node')
+        self.declare_parameter('class_names_path', rclpy.Parameter.Type.STRING)
 
     def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
         """
@@ -78,6 +60,18 @@ class MaskRCNNDetectronNode(BaseCVNode):
         bool :
             True if the node is ready for execution, False otherwise.
         """
+        class_names_path = self.get_parameter('class_names_path').value
+        if not os.path.exists(class_names_path):
+            self.logger.error(f'File {class_names_path} does not exist')
+            return False
+        with open(class_names_path, 'r') as f:
+            reader = csv.reader(f)
+            reader.__next__()
+            self.classes = tuple([row[0] for row in reader])
+            if not self.classes:
+                self.logger.error(f'File {class_names_path} is empty')
+                return False
+
         cfg = get_cfg()
         cfg.merge_from_file(model_zoo.get_config_file(
             'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'))

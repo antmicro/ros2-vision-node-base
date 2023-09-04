@@ -26,6 +26,8 @@ MaskRCNNTorchScript::MaskRCNNTorchScript(const rclcpp::NodeOptions &options)
     param_descriptor.read_only = false;
     param_descriptor.description = "Path to the TorchScript model file";
     declare_parameter<std::string>("model_path", "", param_descriptor);
+    param_descriptor.description = "Path to the file with class names";
+    declare_parameter<std::string>("class_names_path", "", param_descriptor);
 }
 
 bool MaskRCNNTorchScript::prepare()
@@ -34,6 +36,30 @@ bool MaskRCNNTorchScript::prepare()
     if (model_path.empty())
     {
         RCLCPP_ERROR(this->get_logger(), "No script path provided");
+        return false;
+    }
+
+    std::string class_names_path = get_parameter("class_names_path").as_string();
+    if (class_names_path.empty())
+    {
+        RCLCPP_ERROR(this->get_logger(), "No class names path provided");
+        return false;
+    }
+    std::ifstream class_names_file(class_names_path);
+    if (!class_names_file.good())
+    {
+        RCLCPP_ERROR(this->get_logger(), "Class names file does not exist: %s", class_names_path.c_str());
+        return false;
+    }
+    std::string line;
+    std::getline(class_names_file, line);
+    while (std::getline(class_names_file, line))
+    {
+        class_names.push_back(line.substr(0, line.find(',')));
+    }
+    if (class_names.empty())
+    {
+        RCLCPP_ERROR(this->get_logger(), "No class names found in file: %s", class_names_path.c_str());
         return false;
     }
 

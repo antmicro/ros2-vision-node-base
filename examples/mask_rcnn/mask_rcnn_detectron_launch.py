@@ -37,13 +37,20 @@ def generate_launch_description():
             default_value='True',
             description='Indicates whether manager should save output'
     )
+    class_names_path = DeclareLaunchArgument(
+            'class_names_path',
+            description='Path to the file containing classes'
+    )
 
     mask_rcnn_node = Node(
             package='cvnode_base',
             executable='mask_rcnn_detectron.py',
             name='mask_rcnn_node',
             arguments=['--ros-args',
-                       '--log-level', LaunchConfiguration('log_level')]
+                       '--log-level', LaunchConfiguration('log_level')],
+            parameters=[{
+                'class_names_path': LaunchConfiguration('class_names_path'),
+            }],
     )
 
     cvnode_manager_node = ComposableNodeContainer(
@@ -95,6 +102,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        class_names_path,
         cvnode_manager_gui_node,
         cvnode_manager_node,
         inference_timeout_ms,
