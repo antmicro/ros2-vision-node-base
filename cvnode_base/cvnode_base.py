@@ -4,7 +4,6 @@
 
 """Base class for computer vision nodes."""
 
-from threading import Lock
 from typing import List
 
 from kenning_computer_vision_msgs.msg import RuntimeMsgType, SegmentationMsg
@@ -36,27 +35,6 @@ class BaseCVNode(Node):
 
         # Service responsible for communication with the CVNodeManager
         self._communication_service = None
-
-        # Stores input data
-        self._input_data = None
-
-        # Stores model output data
-        self._output_data = []
-
-        # Output data lock
-        self._output_data_lock = Lock()
-
-        # Input data lock
-        self._input_data_lock = Lock()
-
-        # Request id increment lock
-        self._request_id_lock = Lock()
-
-        # Process access lock
-        self._process_lock = Lock()
-
-        # Id of request
-        self._request_id = 0
 
         super().__init__(node_name)
 
@@ -152,43 +130,6 @@ class BaseCVNode(Node):
         """
         raise NotImplementedError
 
-    def _run_inference(self) -> SegmentCVNodeSrv.Response:
-        """
-        Executes inference stages and returns response.
-
-        Returns
-        -------
-        SegmentCVNodeSrv.Response :
-            Response to the manager node.
-        """
-        response = SegmentCVNodeSrv.Response()
-        response.message_type = RuntimeMsgType.OK
-
-        with self._request_id_lock:
-            self._request_id += 1
-            tmp_request_id = self._request_id
-        with self._input_data_lock:
-            tmp_input_data = self._input_data
-            self._input_data = []
-
-        if not tmp_input_data:
-            return self.report_error(
-                    SegmentCVNodeSrv.Response(),
-                    '[PREDICT] Received empty input data')
-
-        with self._process_lock:
-            with self._request_id_lock:
-                if tmp_request_id != self._request_id:
-                    return response
-            output = self.run_inference(tmp_input_data)
-
-        with self._output_data_lock:
-            with self._request_id_lock:
-                if tmp_request_id != self._request_id:
-                    return response
-            self._output_data = output
-            return response
-
     def cleanup(self):
         """
         Cleanup allocated resources used by the node.
@@ -253,22 +194,13 @@ class BaseCVNode(Node):
             if not self.prepare():
                 return self.report_error(
                         response, '[MODEL] Failed to prepare node.')
-        elif request.message_type == RuntimeMsgType.DATA:
-            if not request.input:
-                return self.report_error(
-                        response, '[DATA] Received empty data')
-            with self._input_data_lock:
-                self._input_data = request.input
         elif request.message_type == RuntimeMsgType.PROCESS:
-            return self._run_inference()
-        elif request.message_type == RuntimeMsgType.OUTPUT:
-            with self._output_data_lock:
-                with self._request_id_lock:
-                    self._request_id += 1
-                if not self._output_data:
-                    self.get_logger().debug('[OUTPUT] No output data to send')
-                response._output = self._output_data
-                self._output_data = []
+            if not request.input:
+                return self.report_error(SegmentCVNodeSrv.Response(),
+                                         '[PROCESS] Received empty input data')
+            response.output = self.run_inference(request.input)
+        elif request.message_type == RuntimeMsgType.CLEANUP:
+            self.cleanup()
         elif request.message_type == RuntimeMsgType.ERROR:
             response = self.report_error(
                     response, '[ERROR] Received ERROR message. Cleaning up.')
