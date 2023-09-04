@@ -4,7 +4,6 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 
@@ -40,13 +39,6 @@ private:
         const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request);
 
     /**
-     * Executes inference.
-     *
-     * @param header Header of the service request.
-     */
-    void _run_inference(const std::shared_ptr<rmw_request_id_t> header);
-
-    /**
      * Reports error to the manager.
      *
      * @param header Header of the service request.
@@ -64,18 +56,6 @@ private:
 
     /// Communication service.
     rclcpp::Service<kenning_computer_vision_msgs::srv::SegmentCVNodeSrv>::SharedPtr communication_service;
-
-    std::vector<sensor_msgs::msg::Image> input_data; ///< Input data
-
-    /// Post-processed inference output
-    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> output_data;
-
-    std::mutex input_data_mutex;  ///< Mutex for input data access
-    std::mutex output_data_mutex; ///< Mutex for output data access
-    std::mutex request_id_mutex;  ///< Mutex for request ID access
-    std::mutex process_mutex;     ///< Mutex for processing access
-
-    uint64_t request_id = 0; ///< ID incremented for each request
 
 public:
     /**
