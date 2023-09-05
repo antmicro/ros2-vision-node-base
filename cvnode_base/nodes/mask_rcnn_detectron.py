@@ -9,8 +9,6 @@ import os
 from gc import collect
 from typing import Dict, List
 
-import cv2
-import numpy as np
 import rclpy
 from detectron2 import model_zoo
 from detectron2.checkpoint import DetectionCheckpointer
@@ -22,6 +20,7 @@ from sensor_msgs.msg import Image
 from torch import as_tensor
 
 from cvnode_base.cvnode_base import BaseCVNode
+from cvnode_base.utils import imageToMat
 
 
 class MaskRCNNDetectronNode(BaseCVNode):
@@ -48,7 +47,6 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """
         input_data = self.preprocess(X)
         predictions = self.predict(input_data)
-        input_data = None
         return self.postprocess(predictions, X)
 
     def prepare(self) -> bool:
@@ -102,14 +100,12 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """
         Y = []
         for msg in X:
-            img = self.convert_image_format(msg.data, msg.encoding)
-            height = msg.height
-            width = msg.width
-            img = np.reshape(img, (height, width, -1))
+            img = imageToMat(msg, 'bgr8')
             augmented = self.aug.get_transform(img).apply_image(img)
             augmented = as_tensor(
                 augmented.astype('float32').transpose(2, 0, 1))
-            Y.append({'image': augmented, 'height': height, 'width': width})
+            Y.append({'image': augmented, 'height': msg.height,
+                      'width': msg.width})
         return Y
 
     def predict(self, X: List[Dict]) -> List[Dict]:
@@ -186,31 +182,3 @@ class MaskRCNNDetectronNode(BaseCVNode):
         del self.model
         del self.aug
         collect()
-
-    def convert_image_format(self, image: np.ndarray, encoding: str
-                             ) -> np.ndarray:
-        """
-        Convert image to BGR format.
-
-        Parameters
-        ----------
-        image : np.ndarray
-            Input image.
-        encoding : str
-            Image encoding.
-
-        Returns
-        -------
-        np.ndarray :
-            Image in BGR format.
-        """
-        if (encoding in ['bgr8', '8UC3']):
-            return np.asarray(image, dtype=np.uint8)
-        elif (encoding == 'rgb8'):
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        elif (encoding in ['mono8', '8UC1']):
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        elif (encoding in ['bgra8', '8UC4']):
-            image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-        elif (encoding == 'rgba8'):
-            image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
