@@ -38,7 +38,7 @@ class BaseCVNode(Node):
 
         super().__init__(node_name)
 
-        self.registerNode("node_manager/register")
+        self.registerNode("cvnode_register")
 
     def registerNode(self, manage_service_name: str):
         """

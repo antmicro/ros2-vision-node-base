@@ -27,7 +27,7 @@
         "parameters":
         {
             "node_name": "kenning_dataprovider",
-            "service_name": "node_manager/dataprovider"
+            "service_name": "dataprovider"
         }
     }
 }

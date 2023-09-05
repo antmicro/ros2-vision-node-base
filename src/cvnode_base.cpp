@@ -15,7 +15,7 @@ using RuntimeMsgType = kenning_computer_vision_msgs::msg::RuntimeMsgType;
 
 BaseCVNode::BaseCVNode(const std::string &node_name, const rclcpp::NodeOptions &options) : Node(node_name, options)
 {
-    register_node("node_manager/register");
+    register_node("cvnode_register");
 }
 
 void BaseCVNode::communication_callback(
