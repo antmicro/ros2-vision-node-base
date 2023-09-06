@@ -6,18 +6,19 @@
 
 from typing import List
 
-from kenning_computer_vision_msgs.msg import RuntimeMsgType, SegmentationMsg
+from kenning_computer_vision_msgs.msg import SegmentationMsg
 from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_srvs.srv import Trigger
 
 
 class BaseCVNode(Node):
     """
     Base class for tested computer vision nodes.
 
-    Responsible for communication with the CVNodeManager
+    Responsible for process with the CVNodeManager
     and running inference.
     """
 
@@ -34,7 +35,9 @@ class BaseCVNode(Node):
         self._manage_node_client = None
 
         # Service responsible for communication with the CVNodeManager
-        self._communication_service = None
+        self._prepare_service = None
+        self._process_service = None
+        self._cleanup_service = None
 
         super().__init__(node_name)
 
@@ -59,20 +62,34 @@ class BaseCVNode(Node):
                     '[REGISTER] Node manage service not available')
             return
 
-        communication_service_name = f'{self.get_name()}/communication'
+        prepare_service_name = f'{self.get_name()}/prepare'
+        process_service_name = f'{self.get_name()}/process'
+        cleanup_service_name = f'{self.get_name()}/cleanup'
 
         # Initialize services
-        self._communication_service = self.create_service(
+        self._prepare_service = self.create_service(
+                Trigger,
+                prepare_service_name,
+                self._prepareCallback
+        )
+        self._process_service = self.create_service(
             SegmentCVNodeSrv,
-            communication_service_name,
-            self._communicationCallback,
+            process_service_name,
+            self._processCallback,
             callback_group=ReentrantCallbackGroup())
+        self._cleanup_service = self.create_service(
+                Trigger,
+                cleanup_service_name,
+                self._cleanupCallback
+        )
 
         # Create request for manage service
         request = ManageCVNode.Request()
         request.type = request.REGISTER
         request.node_name = self.get_name()
-        request.srv_name = communication_service_name
+        request.prepare_srv_name = prepare_service_name
+        request.process_srv_name = process_service_name
+        request.cleanup_srv_name = cleanup_service_name
 
         def register_callback(future):
             response = future.result()
@@ -147,70 +164,74 @@ class BaseCVNode(Node):
         self._manage_node_client.call_async(request)
         self._manage_node_client = None
 
-    def report_error(self, response: SegmentCVNodeSrv.Response,
-                     message: str) -> SegmentCVNodeSrv.Response:
+    def _prepareCallback(self, request: Trigger.Request,
+                         response: Trigger.Response) -> Trigger.Response:
         """
-        Report error to the client.
+        Callback for the prepare service.
+
+        Responsible for preparing node for inference.
 
         Parameters
         ----------
-        response : SegmentCVNodeSrv.Response
-            Response to the client.
-        message : str
-            Error message to be logged.
+        request : Trigger.Request
+            Request for the prepare service.
+        response : Trigger.Response
+            Processed response for the prepare service client.
 
         Returns
         -------
-        SegmentCVNodeSrv.Response :
-            Response to the client with ERROR message type set.
+        Trigger.Response :
+            Processed response for the prepare service client.
         """
-        response.message_type = RuntimeMsgType.ERROR
-        self.get_logger().error(message)
+        if not self.prepare():
+            response.success = False
+            return response
+        response.success = True
         return response
 
-    def _communicationCallback(self, request: SegmentCVNodeSrv.Request,
-                               response: SegmentCVNodeSrv.Response
-                               ) -> SegmentCVNodeSrv.Response:
+    def _processCallback(self, request: SegmentCVNodeSrv.Request,
+                         response: SegmentCVNodeSrv.Response
+                         ) -> SegmentCVNodeSrv.Response:
         """
-        Callback for the communication service.
+        Callback for the process service.
 
-        Responsible for handling CVNodeManager's request messages by invoking
-        appropriate methods.
+        Responsible for running inference on the input data.
 
         Parameters
         ----------
         request : SegmentCVNodeSrv.Request
-            Request for the communication service.
+            Request for the process service.
         response : SegmentCVNodeSrv.Response
-            Processed response for the communication service client.
+            Processed response for the process service client.
 
         Returns
         -------
         SegmentCVNodeSrv.Response :
-            Processed response for the communication service client.
+            Processed response for the process service client.
         """
+        response.output = self.run_inference(request.input)
+        response.success = True
+        return response
 
-        if request.message_type == RuntimeMsgType.MODEL:
-            if not self.prepare():
-                return self.report_error(
-                        response, '[MODEL] Failed to prepare node.')
-        elif request.message_type == RuntimeMsgType.PROCESS:
-            if not request.input:
-                return self.report_error(SegmentCVNodeSrv.Response(),
-                                         '[PROCESS] Received empty input data')
-            response.output = self.run_inference(request.input)
-        elif request.message_type == RuntimeMsgType.CLEANUP:
-            self.cleanup()
-        elif request.message_type == RuntimeMsgType.ERROR:
-            response = self.report_error(
-                    response, '[ERROR] Received ERROR message. Cleaning up.')
-            self.cleanup()
-            self._unregisterNode()
-            return response
-        else:
-            return self.report_error(
-                    response,
-                    '[UNKNOWN] Not supported message type: ' +
-                    request.message_type)
-        response.message_type = RuntimeMsgType.OK
+    def _cleanupCallback(self, request: Trigger.Request,
+                         response: Trigger.Response) -> Trigger.Response:
+        """
+        Callback for the cleanup service.
+
+        Responsible for cleaning up node's resources.
+
+        Parameters
+        ----------
+        request : Trigger.Request
+            Request for the cleanup service.
+        response : Trigger.Response
+            Processed response for the cleanup service client.
+
+        Returns
+        -------
+        Trigger.Response :
+            Processed response for the cleanup service client.
+        """
+        self.cleanup()
+        response.success = True
         return response
