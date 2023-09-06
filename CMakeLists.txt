@@ -14,10 +14,11 @@ option(BUILD_MASK_RCNN_TORCHSCRIPT "Builds node with TorchScript implementation 
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(kenning_computer_vision_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(kenning_computer_vision_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 find_package(OpenCV REQUIRED)
 
@@ -51,6 +52,7 @@ ament_target_dependencies(basecvnode
     kenning_computer_vision_msgs
     rclcpp
     sensor_msgs
+    std_srvs
 )
 
 target_link_libraries(basecvnode

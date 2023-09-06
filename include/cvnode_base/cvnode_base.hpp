@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <string>
 
 #include <kenning_computer_vision_msgs/msg/segmentation_msg.hpp>
@@ -28,23 +29,37 @@ private:
     void register_callback(const rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedFuture future);
 
     /**
-     * Callback for communication service.
-     * Responsible for handling the communication between the manager and the node.
+     * Callback for prepare service.
+     * Prepares the node for inference.
+     *
+     * @param request Request of the service.
+     * @param response Response of the service.
+     */
+    void prepare_callback(
+        const std_srvs::srv::Trigger::Request::SharedPtr request,
+        std_srvs::srv::Trigger::Response::SharedPtr response);
+
+    /**
+     * Callback for process service.
+     * Runs inference on the input data in a separate thread.
      *
      * @param header Header of the service request.
      * @param request Request of the service.
      */
-    void communication_callback(
+    void process_callback(
         const std::shared_ptr<rmw_request_id_t> header,
         const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request);
 
     /**
-     * Reports error to the manager.
+     * Callback for cleanup service.
+     * Cleans up the node after inference.
      *
-     * @param header Header of the service request.
-     * @param error_msg Error message.
+     * @param request Request of the service.
+     * @param response Response of the service.
      */
-    void report_error(const std::shared_ptr<rmw_request_id_t> header, const std::string &error_msg);
+    void cleanup_callback(
+        const std_srvs::srv::Trigger::Request::SharedPtr request,
+        std_srvs::srv::Trigger::Response::SharedPtr response);
 
     /**
      * Unregister node using the node management service.
@@ -54,8 +69,12 @@ private:
     /// Client to manage the BaseCVNode.
     rclcpp::Client<kenning_computer_vision_msgs::srv::ManageCVNode>::SharedPtr manage_client;
 
-    /// Communication service.
-    rclcpp::Service<kenning_computer_vision_msgs::srv::SegmentCVNodeSrv>::SharedPtr communication_service;
+    /// Service to prepare the node for inference.
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr prepare_service;
+    /// Service to run inference on the input data.
+    rclcpp::Service<kenning_computer_vision_msgs::srv::SegmentCVNodeSrv>::SharedPtr process_service;
+    /// Service to cleanup the node after inference.
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr cleanup_service;
 
 public:
     /**

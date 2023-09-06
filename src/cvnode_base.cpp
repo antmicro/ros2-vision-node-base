@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "cvnode_base/cvnode_base.hpp"
-#include <kenning_computer_vision_msgs/msg/runtime_msg_type.hpp>
 #include <thread>
 
 namespace cvnode_base
@@ -11,64 +10,49 @@ namespace cvnode_base
 
 using ManageCVNode = kenning_computer_vision_msgs::srv::ManageCVNode;
 using SegmentCVNodeSrv = kenning_computer_vision_msgs::srv::SegmentCVNodeSrv;
-using RuntimeMsgType = kenning_computer_vision_msgs::msg::RuntimeMsgType;
 
 BaseCVNode::BaseCVNode(const std::string &node_name, const rclcpp::NodeOptions &options) : Node(node_name, options)
 {
     register_node("cvnode_register");
 }
 
-void BaseCVNode::communication_callback(
+void BaseCVNode::prepare_callback(
+    [[maybe_unused]] const std_srvs::srv::Trigger::Request::SharedPtr request,
+    std_srvs::srv::Trigger::Response::SharedPtr response)
+{
+    if (!prepare())
+    {
+        response->success = false;
+        cleanup();
+        unregister_node();
+        return;
+    }
+    response->success = true;
+    return;
+}
+
+void BaseCVNode::process_callback(
     const std::shared_ptr<rmw_request_id_t> header,
     const SegmentCVNodeSrv::Request::SharedPtr request)
 {
-    SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
-    switch (request->message_type)
-    {
-    case RuntimeMsgType::MODEL:
-        if (!prepare())
+    std::thread(
+        [this, header, request]()
         {
-            report_error(header, "[MODEL] Failed to prepare node.");
-            cleanup();
-            unregister_node();
-            break;
-        }
-        response.message_type = RuntimeMsgType::OK;
-        communication_service->send_response(*header, response);
-        break;
-    case RuntimeMsgType::PROCESS:
-        std::thread(
-            [this, header, request]()
-            {
-                SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
-                response.output = run_inference(request->input);
-                response.message_type = RuntimeMsgType::OK;
-                communication_service->send_response(*header, response);
-            })
-            .detach();
-        break;
-    case RuntimeMsgType::CLEANUP:
-        cleanup();
-        response.message_type = RuntimeMsgType::OK;
-        communication_service->send_response(*header, response);
-        break;
-    case RuntimeMsgType::ERROR:
-        report_error(header, "[ERROR] Received ERROR message");
-        cleanup();
-        unregister_node();
-        break;
-    default:
-        report_error(header, "[UNKNOWN] Received unknown message type");
-        break;
-    }
+            SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
+            response.output = run_inference(request->input);
+            response.success = true;
+            process_service->send_response(*header, response);
+        })
+        .detach();
 }
 
-void BaseCVNode::report_error(const std::shared_ptr<rmw_request_id_t> header, const std::string &message)
+void BaseCVNode::cleanup_callback(
+    [[maybe_unused]] const std_srvs::srv::Trigger::Request::SharedPtr request,
+    std_srvs::srv::Trigger::Response::SharedPtr response)
 {
-    SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
-    response.message_type = RuntimeMsgType::ERROR;
-    RCLCPP_ERROR(get_logger(), "%s", message.c_str());
-    communication_service->send_response(*header, response);
+    cleanup();
+    response->success = true;
+    return;
 }
 
 void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFuture future)
@@ -86,7 +70,9 @@ void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFut
         RCLCPP_ERROR(get_logger(), "[REGISTER] Error message: %s", result->message.c_str());
         cleanup();
         manage_client.reset();
-        communication_service.reset();
+        prepare_service.reset();
+        process_service.reset();
+        cleanup_service.reset();
         return;
     }
 
@@ -110,11 +96,19 @@ void BaseCVNode::register_node(const std::string &manage_node_name)
     auto request = std::make_shared<ManageCVNode::Request>();
     request->type = request->REGISTER;
     request->node_name = std::string(get_name());
-    request->srv_name = std::string(get_name()) + "/communication";
+    request->prepare_srv_name = std::string(get_name()) + "/prepare";
+    request->process_srv_name = std::string(get_name()) + "/process";
+    request->cleanup_srv_name = std::string(get_name()) + "/cleanup";
 
-    communication_service = create_service<SegmentCVNodeSrv>(
-        request->srv_name,
-        std::bind(&BaseCVNode::communication_callback, this, std::placeholders::_1, std::placeholders::_2));
+    prepare_service = create_service<std_srvs::srv::Trigger>(
+        request->prepare_srv_name,
+        std::bind(&BaseCVNode::prepare_callback, this, std::placeholders::_1, std::placeholders::_2));
+    process_service = create_service<SegmentCVNodeSrv>(
+        request->process_srv_name,
+        std::bind(&BaseCVNode::process_callback, this, std::placeholders::_1, std::placeholders::_2));
+    cleanup_service = create_service<std_srvs::srv::Trigger>(
+        request->cleanup_srv_name,
+        std::bind(&BaseCVNode::cleanup_callback, this, std::placeholders::_1, std::placeholders::_2));
     manage_client->async_send_request(
         request,
         [this](const rclcpp::Client<ManageCVNode>::SharedFuture future) { register_callback(future); });
@@ -133,7 +127,9 @@ void BaseCVNode::unregister_node()
     request->node_name = std::string(get_name());
     manage_client->async_send_request(request);
     manage_client.reset();
-    communication_service.reset();
+    prepare_service.reset();
+    process_service.reset();
+    cleanup_service.reset();
 }
 
 } // namespace cvnode_base
