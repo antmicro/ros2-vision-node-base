@@ -7,6 +7,7 @@
 import csv
 import os
 from gc import collect
+from threading import Lock
 from typing import Dict, List
 
 import rclpy
@@ -18,6 +19,7 @@ from detectron2.modeling import build_model
 from kenning_computer_vision_msgs.msg import BoxMsg, MaskMsg, SegmentationMsg
 from sensor_msgs.msg import Image
 from torch import as_tensor
+from torch.cuda import empty_cache
 
 from cvnode_base.cvnode_base import BaseCVNode
 from cvnode_base.utils import imageToMat
@@ -28,6 +30,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
     def __init__(self):
         """Initialize node."""
+        self._process_lock = Lock()
         super().__init__(node_name='mask_rcnn_detectron_node')
         self.declare_parameter('class_names_path', rclpy.Parameter.Type.STRING)
 
@@ -45,9 +48,14 @@ class MaskRCNNDetectronNode(BaseCVNode):
         List[SegmentationMsg] :
             List of postprocessed segmentation messages.
         """
-        input_data = self.preprocess(X)
-        predictions = self.predict(input_data)
-        return self.postprocess(predictions, X)
+        result = []
+        for frame in X:
+            with self._process_lock:
+                input_data = self.preprocess(frame)
+                prediction = self.predict(input_data)
+            result.append(self.postprocess(prediction, frame))
+            empty_cache()
+        return result
 
     def prepare(self) -> bool:
         """
@@ -84,96 +92,89 @@ class MaskRCNNDetectronNode(BaseCVNode):
             cfg.INPUT.MAX_SIZE_TEST)
         return True
 
-    def preprocess(self, X: List[Image]) -> List[Dict]:
+    def preprocess(self, frame: Image) -> Dict:
         """
         Preprocess input data.
 
         Parameters
         ----------
-        X : List[Image]
-            List of input image messages.
+        frame : Image
+            Input image message.
 
         Returns
         -------
-        List[Dict] :
+        Dict :
             Preprocessed data compatible with the model.
         """
-        Y = []
-        for msg in X:
-            img = imageToMat(msg, 'bgr8')
-            augmented = self.aug.get_transform(img).apply_image(img)
-            augmented = as_tensor(
-                augmented.astype('float32').transpose(2, 0, 1))
-            Y.append({'image': augmented, 'height': msg.height,
-                      'width': msg.width})
-        return Y
+        img = imageToMat(frame, 'bgr8')
+        augmented = self.aug.get_transform(img).apply_image(img)
+        augmented = as_tensor(
+            augmented.astype('float32').transpose(2, 0, 1))
+        return {'image': augmented, 'height': frame.height,
+                'width': frame.width}
 
-    def predict(self, X: List[Dict]) -> List[Dict]:
+    def predict(self, X: Dict) -> Dict:
         """
         Run inference on the input data.
 
         Parameters
         ----------
-        X : List[Dict]
+        X : Dict
             Input data.
 
         Returns
         -------
-        List[Dict] :
+        Dict :
             Model predictions.
         """
-        return [self.model([x])[0] for x in X]
+        return self.model([X])[0]
 
-    def postprocess(self, Y: List[Dict], images: List[Image]
-                    ) -> List[SegmentationMsg]:
+    def postprocess(self, Y: Dict, frame: Image) -> SegmentationMsg:
         """
         Postprocess model predictions.
 
         Parameters
         ----------
-        Y : List[Dict]
+        Y : Dict
             Model predictions.
-        images : List[Image]
-            List of input image messages.
+        frame : Image
+            Input image message.
 
         Returns
         -------
-        List[SegmentationMsg] :
+        SegmentationMsg :
             Postprocessed model predictions in the form of SegmentationMsg.
         """
-        X = []
-        for i, prediction in enumerate(Y):
-            msg = SegmentationMsg()
-            msg._frame = images[i]
-            prediction = prediction['instances']
-            scores = prediction.scores.cpu().detach().numpy()
+        msg = SegmentationMsg()
+        msg._frame = frame
+        prediction = Y['instances']
+        scores = prediction.scores.cpu().detach().numpy()
 
-            for mask_np in prediction.pred_masks.cpu().detach().numpy():
-                mask = MaskMsg()
-                mask._dimension = [mask_np.shape[0], mask_np.shape[1]]
-                mask._data = mask_np.flatten().astype('uint8')
-                msg._masks.append(mask)
+        for mask_np in prediction.pred_masks.cpu().detach().numpy():
+            mask = MaskMsg()
+            mask._dimension = [mask_np.shape[0], mask_np.shape[1]]
+            mask._data = mask_np.flatten().astype('uint8')
+            msg._masks.append(mask)
 
-            boxes = prediction.pred_boxes.tensor
-            boxes[:, 0] /= prediction.image_size[1]
-            boxes[:, 1] /= prediction.image_size[0]
-            boxes[:, 2] /= prediction.image_size[1]
-            boxes[:, 3] /= prediction.image_size[0]
+        boxes = prediction.pred_boxes.tensor
+        boxes[:, 0] /= prediction.image_size[1]
+        boxes[:, 1] /= prediction.image_size[0]
+        boxes[:, 2] /= prediction.image_size[1]
+        boxes[:, 3] /= prediction.image_size[0]
 
-            for box_np in boxes.cpu().detach().numpy():
-                box = BoxMsg()
-                box._xmin = float(box_np[0])
-                box._ymin = float(box_np[1])
-                box._xmax = float(box_np[2])
-                box._ymax = float(box_np[3])
-                msg._boxes.append(box)
+        for box_np in boxes.cpu().detach().numpy():
+            box = BoxMsg()
+            box._xmin = float(box_np[0])
+            box._ymin = float(box_np[1])
+            box._xmax = float(box_np[2])
+            box._ymax = float(box_np[3])
+            msg._boxes.append(box)
 
-            labels = prediction.pred_classes.cpu().detach().numpy()
+        labels = prediction.pred_classes.cpu().detach().numpy()
 
-            msg._scores = scores
-            msg._classes = [self.classes[x] for x in labels]
-            X.append(msg)
-        return X
+        msg._scores = scores
+        msg._classes = [self.classes[x] for x in labels]
+        return msg
 
     def cleanup(self):
         """
