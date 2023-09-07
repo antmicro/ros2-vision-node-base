@@ -93,12 +93,13 @@ def generate_launch_description():
             on_exit=Shutdown(),
     )
 
+    kenning_cmd = 'python -m kenning test'
+    kenning_cmd += ' --json-cfg ./src/cvnode_base/examples/mask_rcnn/mask_rcnn_ros2_inference.json'     # noqa: E501
+    kenning_cmd += ' --measurements ./build/ros2-client-measurements.json'
+    kenning_cmd += ' --verbosity INFO'
     kenning_node = ExecuteProcess(
         name='kenning_node',
-        cmd='python -m kenning test \
---json-cfg ./src/cvnode_base/examples/mask_rcnn/mask_rcnn_ros2_inference.json \
---measurements ./build/ros2-client-measurements.json \
---verbosity INFO'.split(' ')
+        cmd=kenning_cmd.split(' ')
     )
 
     return LaunchDescription([
