@@ -8,6 +8,7 @@
 #include <kenning_computer_vision_msgs/msg/box_msg.hpp>
 #include <kenning_computer_vision_msgs/msg/mask_msg.hpp>
 
+#include <c10/cuda/CUDACachingAllocator.h>
 #include <c10/cuda/CUDAStream.h>
 #include <opencv2/opencv.hpp>
 #include <torch/csrc/autograd/grad_mode.h>
@@ -76,102 +77,91 @@ bool MaskRCNNTorchScript::prepare()
     return true;
 }
 
-std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
-MaskRCNNTorchScript::run_inference(std::vector<sensor_msgs::msg::Image> &X)
+std::vector<SegmentationMsg> MaskRCNNTorchScript::run_inference(std::vector<sensor_msgs::msg::Image> &X)
 {
-    std::vector<c10::IValue> inputs = preprocess(X);
-    std::vector<MaskRCNNOutputs> outputs = predict(inputs);
-    inputs.clear();
-    return postprocess(outputs, X);
-}
-
-std::vector<c10::IValue> MaskRCNNTorchScript::preprocess(std::vector<sensor_msgs::msg::Image> &images)
-{
-    std::vector<c10::IValue> inputs;
-    for (auto &frame : images)
+    std::vector<SegmentationMsg> result;
+    for (auto &frame : X)
     {
-        cv::Mat cv_image = imageToMat(frame, "bgr8");
-        torch::Tensor tensor_image = torch::from_blob(cv_image.data, {cv_image.rows, cv_image.cols, 3}, torch::kUInt8);
-        tensor_image = tensor_image.to(device, torch::kFloat).permute({2, 0, 1}).contiguous();
-        inputs.push_back(tensor_image);
-    }
-    return inputs;
-}
-
-std::vector<MaskRCNNOutputs> MaskRCNNTorchScript::predict(std::vector<c10::IValue> &inputs)
-{
-    std::vector<MaskRCNNOutputs> predictions;
-    for (auto &input : inputs)
-    {
-        c10::IValue output = model.forward({input});
+        c10::IValue input = preprocess(frame);
+        MaskRCNNOutputs prediction;
+        {
+            std::lock_guard<std::mutex> lock(process_mutex);
+            prediction = predict(input);
+        }
+        result.push_back(postprocess(prediction, frame));
         if (device.is_cuda())
         {
-            c10::cuda::getCurrentCUDAStream().synchronize();
+            c10::cuda::CUDACachingAllocator::emptyCache();
         }
-        auto tuple_outputs = output.toTuple()->elements();
-        MaskRCNNOutputs model_output{
-            tuple_outputs[0].toTensor().to(torch::kCPU),
-            tuple_outputs[1].toTensor().to(torch::kCPU),
-            tuple_outputs[2].toTensor().squeeze(1).to(torch::kCPU),
-            tuple_outputs[3].toTensor().to(torch::kCPU)};
-        predictions.push_back(model_output);
     }
-    return predictions;
+    return result;
 }
 
-std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg> MaskRCNNTorchScript::postprocess(
-    std::vector<MaskRCNNOutputs> &predictions,
-    std::vector<sensor_msgs::msg::Image> &images)
+c10::IValue MaskRCNNTorchScript::preprocess(sensor_msgs::msg::Image &frame)
+{
+    cv::Mat cv_image = imageToMat(frame, "bgr8");
+    torch::Tensor tensor_image = torch::from_blob(cv_image.data, {cv_image.rows, cv_image.cols, 3}, torch::kUInt8);
+    tensor_image = tensor_image.to(device, torch::kFloat).permute({2, 0, 1}).contiguous();
+    return tensor_image;
+}
+
+MaskRCNNOutputs MaskRCNNTorchScript::predict(c10::IValue &input)
+{
+    torch::jit::IValue output = model.forward({input});
+    if (device.is_cuda())
+    {
+        c10::cuda::getCurrentCUDAStream().synchronize();
+    }
+    auto tuple_outputs = output.toTuple()->elements();
+    MaskRCNNOutputs model_output{
+        tuple_outputs[0].toTensor().to(torch::kCPU),
+        tuple_outputs[1].toTensor().to(torch::kCPU),
+        tuple_outputs[2].toTensor().squeeze(1).to(torch::kCPU),
+        tuple_outputs[3].toTensor().to(torch::kCPU)};
+    return model_output;
+}
+
+SegmentationMsg MaskRCNNTorchScript::postprocess(MaskRCNNOutputs &prediction, sensor_msgs::msg::Image &frame)
 {
     using MaskMsg = kenning_computer_vision_msgs::msg::MaskMsg;
     using BoxMsg = kenning_computer_vision_msgs::msg::BoxMsg;
-    std::vector<SegmentationMsg> segmentations;
     SegmentationMsg msg;
-    MaskRCNNOutputs output;
-    for (size_t i = 0; i < predictions.size(); i++)
+    msg.frame = frame;
+    std::transform(
+        prediction.classes.data_ptr<int64_t>(),
+        prediction.classes.data_ptr<int64_t>() + prediction.classes.numel(),
+        std::back_inserter(msg.classes),
+        [this](int64_t class_id) { return this->class_names.at(class_id); });
+    msg.scores = std::vector<float>(
+        prediction.scores.data_ptr<float>(),
+        prediction.scores.data_ptr<float>() + prediction.scores.numel());
+    for (int64_t j = 0; j < prediction.masks.size(0); j++)
     {
-        output = predictions.at(i);
-        msg.frame = images.at(i);
-        std::transform(
-            output.classes.data_ptr<int64_t>(),
-            output.classes.data_ptr<int64_t>() + output.classes.numel(),
-            std::back_inserter(msg.classes),
-            [this](int64_t class_id) { return this->class_names.at(class_id); });
-        msg.scores = std::vector<float>(
-            output.scores.data_ptr<float>(),
-            output.scores.data_ptr<float>() + output.scores.numel());
-        for (int64_t j = 0; j < output.masks.size(0); j++)
-        {
-            MaskMsg mask_msg;
-            cv::Mat mask = paste_mask(
-                output.masks.select(0, j),
-                output.boxes.select(0, j),
-                images.at(i).height,
-                images.at(i).width);
-            mask_msg.dimension.push_back(mask.rows);
-            mask_msg.dimension.push_back(mask.cols);
-            mask_msg.data = std::vector<uint8_t>(mask.data, mask.data + mask.total());
-            msg.masks.push_back(mask_msg);
-        }
-        const c10::Scalar width = c10::Scalar(static_cast<float>(images.at(i).width));
-        const c10::Scalar height = c10::Scalar(static_cast<float>(images.at(i).height));
-        output.boxes.select(1, 0).div_(width);
-        output.boxes.select(1, 1).div_(height);
-        output.boxes.select(1, 2).div_(width);
-        output.boxes.select(1, 3).div_(height);
-        output.boxes = output.boxes.to(torch::kCPU);
-        for (int64_t j = 0; j < output.boxes.size(0); j++)
-        {
-            BoxMsg box;
-            box.xmin = output.boxes.select(0, j).select(0, 0).item<float>();
-            box.ymin = output.boxes.select(0, j).select(0, 1).item<float>();
-            box.xmax = output.boxes.select(0, j).select(0, 2).item<float>();
-            box.ymax = output.boxes.select(0, j).select(0, 3).item<float>();
-            msg.boxes.push_back(box);
-        }
-        segmentations.push_back(msg);
+        MaskMsg mask_msg;
+        cv::Mat mask =
+            paste_mask(prediction.masks.select(0, j), prediction.boxes.select(0, j), frame.height, frame.width);
+        mask_msg.dimension.push_back(mask.rows);
+        mask_msg.dimension.push_back(mask.cols);
+        mask_msg.data = std::vector<uint8_t>(mask.data, mask.data + mask.total());
+        msg.masks.push_back(mask_msg);
     }
-    return segmentations;
+    const c10::Scalar width = c10::Scalar(static_cast<float>(frame.width));
+    const c10::Scalar height = c10::Scalar(static_cast<float>(frame.height));
+    prediction.boxes.select(1, 0).div_(width);
+    prediction.boxes.select(1, 1).div_(height);
+    prediction.boxes.select(1, 2).div_(width);
+    prediction.boxes.select(1, 3).div_(height);
+    prediction.boxes = prediction.boxes.to(torch::kCPU);
+    for (int64_t j = 0; j < prediction.boxes.size(0); j++)
+    {
+        BoxMsg box;
+        box.xmin = prediction.boxes.select(0, j).select(0, 0).item<float>();
+        box.ymin = prediction.boxes.select(0, j).select(0, 1).item<float>();
+        box.xmax = prediction.boxes.select(0, j).select(0, 2).item<float>();
+        box.ymax = prediction.boxes.select(0, j).select(0, 3).item<float>();
+        msg.boxes.push_back(box);
+    }
+    return msg;
 }
 
 void MaskRCNNTorchScript::cleanup()
@@ -181,9 +171,9 @@ void MaskRCNNTorchScript::cleanup()
 }
 
 cv::Mat
-MaskRCNNTorchScript::paste_mask(const at::Tensor &mask, const at::Tensor &box, const int height, const int width)
+MaskRCNNTorchScript::paste_mask(const torch::Tensor &mask, const torch::Tensor &box, const int height, const int width)
 {
-    at::Tensor box_int = box.to(torch::kInt32);
+    torch::Tensor box_int = box.to(torch::kInt32);
     int32_t xmin = std::max(box_int.select(0, 0).item<int32_t>(), 0);
     int32_t ymin = std::max(box_int.select(0, 1).item<int32_t>(), 0);
     int32_t xmax = std::min(box_int.select(0, 2).item<int32_t>(), width);

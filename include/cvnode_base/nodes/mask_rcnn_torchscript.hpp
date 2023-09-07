@@ -10,6 +10,7 @@
 
 #include <c10/core/Device.h>
 #include <c10/cuda/CUDAStream.h>
+#include <mutex>
 #include <opencv2/opencv.hpp>
 #include <torch/script.h>
 
@@ -21,10 +22,10 @@ namespace cvnode_base
  */
 struct MaskRCNNOutputs
 {
-    at::Tensor boxes;   ///< Bounding boxes
-    at::Tensor classes; ///< Class IDs
-    at::Tensor masks;   ///< Masks
-    at::Tensor scores;  ///< Scores
+    torch::Tensor boxes;   ///< Bounding boxes
+    torch::Tensor classes; ///< Class IDs
+    torch::Tensor masks;   ///< Masks
+    torch::Tensor scores;  ///< Scores
 };
 
 /**
@@ -45,14 +46,13 @@ private:
      *
      * @return Pasted mask.
      */
-    cv::Mat paste_mask(const at::Tensor &mask, const at::Tensor &box, const int height, const int width);
+    cv::Mat paste_mask(const torch::Tensor &mask, const torch::Tensor &box, const int height, const int width);
 
     std::string model_path;                                 ///< Path to TorchScript file
     torch::jit::script::Module model;                       ///< TorchScript model
     c10::Device device = c10::Device(c10::DeviceType::CPU); ///< Device to run inference on
-
-    /// Class names
-    std::vector<std::string> class_names;
+    std::vector<std::string> class_names;                   ///< Vector of class names
+    std::mutex process_mutex;                               ///< Mutex for inference synchronization
 
 public:
     /**
@@ -80,33 +80,33 @@ public:
     run_inference(std::vector<sensor_msgs::msg::Image> &X) override;
 
     /**
-     * Preprocess images for inference.
+     * Preprocess input image for inference.
      *
-     * @param images Vector of images to preprocess.
+     * @param frame Image to preprocess.
      *
      * @return Preprocessed input data.
      */
-    std::vector<c10::IValue> preprocess(std::vector<sensor_msgs::msg::Image> &images);
+    c10::IValue preprocess(sensor_msgs::msg::Image &frame);
 
     /**
-     * Run inference on preprocessed images.
+     * Run inference on preprocessed image.
      *
-     * @param inputs Vector of preprocessed input data.
+     * @param input Preprocessed input data.
      *
-     * @return Vector of inference outputs.
+     * @return Inference outputs.
      */
-    std::vector<MaskRCNNOutputs> predict(std::vector<c10::IValue> &inputs);
+    MaskRCNNOutputs predict(c10::IValue &input);
 
     /**
-     * Postprocess inference results.
+     * Postprocess inference result.
      *
-     * @param predictions Vector of inference outputs.
-     * @param images Vector of input images.
+     * @param prediction Inference outputs.
+     * @param frame Input image.
      *
-     * @return Vector of instance segmentation results.
+     * @return Instance segmentation result.
      */
-    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
-    postprocess(std::vector<MaskRCNNOutputs> &predictions, std::vector<sensor_msgs::msg::Image> &images);
+    kenning_computer_vision_msgs::msg::SegmentationMsg
+    postprocess(MaskRCNNOutputs &prediction, sensor_msgs::msg::Image &frame);
 
     /**
      * Cleanup allocated model resources.
