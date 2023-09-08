@@ -10,10 +10,8 @@ from cvnode_base.nodes.mask_rcnn_detectron import MaskRCNNDetectronNode
 
 def main(args=None):
     rclpy.init(args=args)
-    executor = rclpy.executors.MultiThreadedExecutor()
     node = MaskRCNNDetectronNode()
-    executor.add_node(node)
-    executor.spin()
+    rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 
