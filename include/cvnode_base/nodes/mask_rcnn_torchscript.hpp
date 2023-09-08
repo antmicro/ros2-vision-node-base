@@ -10,7 +10,6 @@
 
 #include <c10/core/Device.h>
 #include <c10/cuda/CUDAStream.h>
-#include <mutex>
 #include <opencv2/opencv.hpp>
 #include <torch/script.h>
 
@@ -52,7 +51,6 @@ private:
     torch::jit::script::Module model;                       ///< TorchScript model
     c10::Device device = c10::Device(c10::DeviceType::CPU); ///< Device to run inference on
     std::vector<std::string> class_names;                   ///< Vector of class names
-    std::mutex process_mutex;                               ///< Mutex for inference synchronization
 
 public:
     /**

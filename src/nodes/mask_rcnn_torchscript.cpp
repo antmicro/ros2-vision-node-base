@@ -83,11 +83,7 @@ std::vector<SegmentationMsg> MaskRCNNTorchScript::run_inference(std::vector<sens
     for (auto &frame : X)
     {
         c10::IValue input = preprocess(frame);
-        MaskRCNNOutputs prediction;
-        {
-            std::lock_guard<std::mutex> lock(process_mutex);
-            prediction = predict(input);
-        }
+        MaskRCNNOutputs prediction = predict(input);
         result.push_back(postprocess(prediction, frame));
         if (device.is_cuda())
         {

@@ -41,14 +41,14 @@ private:
 
     /**
      * Callback for process service.
-     * Runs inference on the input data in a separate thread.
+     * Runs inference on the input data.
      *
-     * @param header Header of the service request.
      * @param request Request of the service.
+     * @param response Response of the service.
      */
     void process_callback(
-        const std::shared_ptr<rmw_request_id_t> header,
-        const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request);
+        const kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Request::SharedPtr request,
+        kenning_computer_vision_msgs::srv::SegmentCVNodeSrv::Response::SharedPtr response);
 
     /**
      * Callback for cleanup service.

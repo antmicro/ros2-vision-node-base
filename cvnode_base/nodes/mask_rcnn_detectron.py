@@ -7,7 +7,6 @@
 import csv
 import os
 from gc import collect
-from threading import Lock
 from typing import Dict, List
 
 import rclpy
@@ -30,7 +29,6 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
     def __init__(self):
         """Initialize node."""
-        self._process_lock = Lock()
         super().__init__(node_name='mask_rcnn_detectron_node')
         self.declare_parameter('class_names_path', rclpy.Parameter.Type.STRING)
 
@@ -50,9 +48,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """
         result = []
         for frame in X:
-            with self._process_lock:
-                input_data = self.preprocess(frame)
-                prediction = self.predict(input_data)
+            input_data = self.preprocess(frame)
+            prediction = self.predict(input_data)
             result.append(self.postprocess(prediction, frame))
             empty_cache()
         return result

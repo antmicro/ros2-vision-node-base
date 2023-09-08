@@ -8,8 +8,8 @@ from typing import List
 
 from kenning_computer_vision_msgs.msg import SegmentationMsg
 from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
-from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
+from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Image
 from std_srvs.srv import Trigger
 
@@ -72,11 +72,12 @@ class BaseCVNode(Node):
                 prepare_service_name,
                 self._prepareCallback
         )
+        qos_profile = QoSProfile(depth=1)
         self._process_service = self.create_service(
             SegmentCVNodeSrv,
             process_service_name,
             self._processCallback,
-            callback_group=ReentrantCallbackGroup())
+            qos_profile=qos_profile)
         self._cleanup_service = self.create_service(
                 Trigger,
                 cleanup_service_name,

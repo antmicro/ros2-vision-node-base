@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "cvnode_base/cvnode_base.hpp"
-#include <thread>
 
 namespace cvnode_base
 {
@@ -32,18 +31,11 @@ void BaseCVNode::prepare_callback(
 }
 
 void BaseCVNode::process_callback(
-    const std::shared_ptr<rmw_request_id_t> header,
-    const SegmentCVNodeSrv::Request::SharedPtr request)
+    const SegmentCVNodeSrv::Request::SharedPtr request,
+    SegmentCVNodeSrv::Response::SharedPtr response)
 {
-    std::thread(
-        [this, header, request]()
-        {
-            SegmentCVNodeSrv::Response response = SegmentCVNodeSrv::Response();
-            response.output = run_inference(request->input);
-            response.success = true;
-            process_service->send_response(*header, response);
-        })
-        .detach();
+    response->output = run_inference(request->input);
+    response->success = true;
 }
 
 void BaseCVNode::cleanup_callback(
@@ -103,9 +95,15 @@ void BaseCVNode::register_node(const std::string &manage_node_name)
     prepare_service = create_service<std_srvs::srv::Trigger>(
         request->prepare_srv_name,
         std::bind(&BaseCVNode::prepare_callback, this, std::placeholders::_1, std::placeholders::_2));
+
+    // Create QOS with keep last 1 to avoid queueing messages
+    rmw_qos_profile_t qos = rmw_qos_profile_default;
+    qos.depth = 1;
+
     process_service = create_service<SegmentCVNodeSrv>(
         request->process_srv_name,
-        std::bind(&BaseCVNode::process_callback, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&BaseCVNode::process_callback, this, std::placeholders::_1, std::placeholders::_2),
+        qos);
     cleanup_service = create_service<std_srvs::srv::Trigger>(
         request->cleanup_srv_name,
         std::bind(&BaseCVNode::cleanup_callback, this, std::placeholders::_1, std::placeholders::_2));
