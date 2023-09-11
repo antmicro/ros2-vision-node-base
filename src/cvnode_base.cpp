@@ -19,14 +19,17 @@ void BaseCVNode::prepare_callback(
     [[maybe_unused]] const std_srvs::srv::Trigger::Request::SharedPtr request,
     std_srvs::srv::Trigger::Response::SharedPtr response)
 {
+    RCLCPP_DEBUG(get_logger(), "Received request to prepare the node");
     if (!prepare())
     {
+        RCLCPP_ERROR(get_logger(), "Error while preparing the node");
         response->success = false;
         cleanup();
         unregister_node();
         return;
     }
     response->success = true;
+    RCLCPP_DEBUG(get_logger(), "Prepared the node");
     return;
 }
 
@@ -34,14 +37,17 @@ void BaseCVNode::process_callback(
     const SegmentCVNodeSrv::Request::SharedPtr request,
     SegmentCVNodeSrv::Response::SharedPtr response)
 {
+    RCLCPP_DEBUG(get_logger(), "Received request to process input data");
     response->output = run_inference(request->input);
     response->success = true;
+    RCLCPP_DEBUG(get_logger(), "Processed the input data");
 }
 
 void BaseCVNode::cleanup_callback(
     [[maybe_unused]] const std_srvs::srv::Trigger::Request::SharedPtr request,
     std_srvs::srv::Trigger::Response::SharedPtr response)
 {
+    RCLCPP_DEBUG(get_logger(), "Cleaning up the node");
     cleanup();
     response->success = true;
     return;
@@ -49,17 +55,17 @@ void BaseCVNode::cleanup_callback(
 
 void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFuture future)
 {
-
     auto result = future.get();
+    RCLCPP_DEBUG(get_logger(), "Received response from the register node service");
     if (!result)
     {
-        RCLCPP_ERROR(get_logger(), "[REGISTER] No response from the register node service");
+        RCLCPP_ERROR(get_logger(), "No response from the register node service");
         return;
     }
     if (!result->status)
     {
-        RCLCPP_ERROR(get_logger(), "[REGISTER] The node is not registered");
-        RCLCPP_ERROR(get_logger(), "[REGISTER] Error message: %s", result->message.c_str());
+        RCLCPP_ERROR(get_logger(), "The node is not registered");
+        RCLCPP_ERROR(get_logger(), "Error message: %s", result->message.c_str());
         cleanup();
         manage_client.reset();
         prepare_service.reset();
@@ -68,11 +74,12 @@ void BaseCVNode::register_callback(const rclcpp::Client<ManageCVNode>::SharedFut
         return;
     }
 
-    RCLCPP_DEBUG(get_logger(), "[REGISTER] The node was registered: %s", result->message.c_str());
+    RCLCPP_DEBUG(get_logger(), "The node was registered: %s", result->message.c_str());
 }
 
 void BaseCVNode::register_node(const std::string &manage_node_name)
 {
+    RCLCPP_DEBUG(get_logger(), "Registering the node");
     if (manage_client)
     {
         unregister_node();
@@ -81,7 +88,7 @@ void BaseCVNode::register_node(const std::string &manage_node_name)
     manage_client = create_client<ManageCVNode>(manage_node_name);
     if (!manage_client->wait_for_service(std::chrono::seconds(1)))
     {
-        RCLCPP_ERROR(get_logger(), "[REGISTER] The node management service is not available after waiting");
+        RCLCPP_ERROR(get_logger(), "The node management service is not available after waiting");
         return;
     }
 
@@ -114,9 +121,10 @@ void BaseCVNode::register_node(const std::string &manage_node_name)
 
 void BaseCVNode::unregister_node()
 {
+    RCLCPP_DEBUG(get_logger(), "Unregistering the node");
     if (!manage_client)
     {
-        RCLCPP_DEBUG(get_logger(), "[UNREGISTER] The node is not registered");
+        RCLCPP_DEBUG(get_logger(), "The node is not registered");
         return;
     }
 
@@ -128,6 +136,7 @@ void BaseCVNode::unregister_node()
     prepare_service.reset();
     process_service.reset();
     cleanup_service.reset();
+    RCLCPP_DEBUG(get_logger(), "The node was unregistered");
 }
 
 } // namespace cvnode_base

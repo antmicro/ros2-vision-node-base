@@ -52,6 +52,7 @@ class BaseCVNode(Node):
         manage_service_name : str
             Name of the service for nodes management.
         """
+        self.get_logger().debug('Registering node')
         if self._manage_node_client:
             self._unregisterNode()
 
@@ -59,7 +60,7 @@ class BaseCVNode(Node):
                                                       manage_service_name)
         if not self._manage_node_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().error(
-                    '[REGISTER] Node manage service not available')
+                    'Node manage service not available')
             return
 
         prepare_service_name = f'{self.get_name()}/prepare'
@@ -94,18 +95,18 @@ class BaseCVNode(Node):
 
         def register_callback(future):
             response = future.result()
+            self.get_logger().debug('Received register response')
             if not response:
-                self.get_logger().error('[REGISTER] Service call failed.')
+                self.get_logger().error('Service call failed.')
                 return
 
             if not response.status:
-                error_msg = '[REGISTER] Register service call failed: ' + \
+                error_msg = 'Register service call failed: ' + \
                         response.message
                 self.get_logger().error(error_msg)
                 return
 
-            self.get_logger().debug(
-                    '[REGISTER] Register service call succeeded')
+            self.get_logger().debug('Register service call succeeded')
             return
 
         future = self._manage_node_client.call_async(request)
@@ -117,6 +118,7 @@ class BaseCVNode(Node):
 
         Unregisters node if was registered.
         """
+        self.get_logger().debug('Destroying node')
         if self._manage_node_client:
             self._unregisterNode()
         super().destroy_node()
@@ -158,12 +160,17 @@ class BaseCVNode(Node):
         """
         Unregister node with service.
         """
+        self.get_logger().debug('Unregistering node')
+        if self._manage_node_client is None:
+            self.get_logger().warn('Node was not registered')
+            return
         request = ManageCVNode.Request()
         request.type = request.UNREGISTER
         request.node_name = self.get_name()
 
         self._manage_node_client.call_async(request)
         self._manage_node_client = None
+        self.get_logger().debug('Node unregistered')
 
     def _prepareCallback(self, request: Trigger.Request,
                          response: Trigger.Response) -> Trigger.Response:
@@ -184,10 +191,13 @@ class BaseCVNode(Node):
         Trigger.Response :
             Processed response for the prepare service client.
         """
+        self.get_logger().debug('Preparing node')
         if not self.prepare():
+            self.get_logger().error('Node preparation failed')
             response.success = False
             return response
         response.success = True
+        self.get_logger().debug('Node prepared')
         return response
 
     def _processCallback(self, request: SegmentCVNodeSrv.Request,
@@ -210,8 +220,10 @@ class BaseCVNode(Node):
         SegmentCVNodeSrv.Response :
             Processed response for the process service client.
         """
+        self.get_logger().debug('Executing inference on input data')
         response.output = self.run_inference(request.input)
         response.success = True
+        self.get_logger().debug('Inference executed')
         return response
 
     def _cleanupCallback(self, request: Trigger.Request,
@@ -233,6 +245,7 @@ class BaseCVNode(Node):
         Trigger.Response :
             Processed response for the cleanup service client.
         """
+        self.get_logger().debug('Cleaning up node')
         self.cleanup()
         response.success = True
         return response
