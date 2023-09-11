@@ -27,7 +27,8 @@
         "parameters":
         {
             "node_name": "kenning_dataprovider",
-            "service_name": "dataprovider"
+            "process_action_type_str": "kenning_computer_vision_msgs.action.SegmentationAction",
+            "process_action_name": "cvnode_process"
         }
     }
 }

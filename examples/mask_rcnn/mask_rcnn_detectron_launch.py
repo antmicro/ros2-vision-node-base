@@ -75,7 +75,6 @@ def generate_launch_description():
         output='both',
         arguments=['--ros-args',
                    '--log-level', LaunchConfiguration('log_level')],
-        on_exit=Shutdown()
     )
 
     cvnode_manager_gui_node = ComposableNodeContainer(
@@ -91,7 +90,6 @@ def generate_launch_description():
                 ),
             ],
             output='both',
-            on_exit=Shutdown(),
     )
 
     kenning_cmd = 'python -m kenning test'
@@ -100,7 +98,8 @@ def generate_launch_description():
     kenning_cmd += ' --verbosity INFO'
     kenning_node = ExecuteProcess(
         name='kenning_node',
-        cmd=kenning_cmd.split(' ')
+        cmd=kenning_cmd.split(' '),
+        on_exit=Shutdown(),
     )
 
     return LaunchDescription([
