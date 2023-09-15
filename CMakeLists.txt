@@ -65,7 +65,20 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
     find_package(rclcpp_components REQUIRED)
 
     find_package(Torch REQUIRED)
-    find_package(TorchVision REQUIRED)
+    find_package(TorchVision QUIET)
+    if (NOT TorchVision_FOUND)
+        message("TorchVision not found - building it")
+        include(FetchContent)
+        # Fetch and build torchvision with `cmake -DWITH_CUDA=ON`
+        FetchContent_Declare(
+            torchvision
+            GIT_REPOSITORY https://github.com/pytorch/vision
+            GIT_TAG v0.15.1
+        )
+        set(WITH_CUDA ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(torchvision)
+        add_library(TorchVision::TorchVision ALIAS torchvision)
+    endif()
 
     add_library(mask_rcnn_torchscript_node SHARED
         src/nodes/mask_rcnn_torchscript.cpp
