@@ -1,12 +1,4 @@
 {
-    "model_wrapper":
-    {
-        "type": "kenning.modelwrappers.instance_segmentation.ros2.ROS2SegmentationWrapper",
-        "parameters":
-        {
-            "model_path": "kenning:///models/instance_segmentation/yolact.onnx"
-        }
-    },
     "dataset":
     {
         "type": "kenning.datasets.coco_dataset.COCODataset2017",
@@ -30,5 +22,10 @@
             "process_action_type_str": "kenning_computer_vision_msgs.action.SegmentationAction",
             "process_action_name": "cvnode_process"
         }
+    },
+    "dataconverter":
+    {
+        "type": "kenning.dataconverters.ros2_segmentation_dataconverter.ROS2SegmentationDataConverter",
+        "parameters": {}
     }
 }
