@@ -60,13 +60,16 @@ target_link_libraries(basecvnode
 )
 
 if (BUILD_MASK_RCNN_TORCHSCRIPT)
+
+    option(BUILD_TORCHVISION "Clones and builds TorchVision library" OFF)
+
     # Node dependencies
     find_package(rcl_interfaces REQUIRED)
     find_package(rclcpp_components REQUIRED)
 
     find_package(Torch REQUIRED)
     find_package(TorchVision QUIET)
-    if (NOT TorchVision_FOUND)
+    if (NOT TorchVision_FOUND AND BUILD_TORCHVISION)
         message("TorchVision not found - building it")
         include(FetchContent)
         # Fetch and build torchvision with `cmake -DWITH_CUDA=ON`
@@ -78,6 +81,8 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
         set(WITH_CUDA ON CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(torchvision)
         add_library(TorchVision::TorchVision ALIAS torchvision)
+    elseif (NOT TorchVision_FOUND)
+        message(FATAL_ERROR "TorchVision not found - please install it or set BUILD_TORCHVISION to ON")
     endif()
 
     add_library(mask_rcnn_torchscript_node SHARED
