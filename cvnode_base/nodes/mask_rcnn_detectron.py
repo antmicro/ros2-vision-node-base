@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright 2022-2023 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -180,3 +182,15 @@ class MaskRCNNDetectronNode(BaseCVNode):
         del self.model
         del self.aug
         collect()
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MaskRCNNDetectronNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

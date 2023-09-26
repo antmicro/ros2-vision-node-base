@@ -118,7 +118,7 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
     )
 
     install(PROGRAMS
-        examples/mask_rcnn/mask_rcnn_detectron.py
+        cvnode_base/nodes/mask_rcnn_detectron.py
         DESTINATION lib/${PROJECT_NAME})
 
     install(FILES
