@@ -59,6 +59,15 @@ target_link_libraries(basecvnode
     ${OpenCV_LIBS}
 )
 
+ament_export_targets(basecvnodeTargets HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+    cv_bridge
+    kenning_computer_vision_msgs
+    rclcpp
+    sensor_msgs
+    std_srvs
+)
+
 if (BUILD_MASK_RCNN_TORCHSCRIPT)
 
     option(BUILD_TORCHVISION "Clones and builds TorchVision library" OFF)
@@ -122,9 +131,15 @@ endif(BUILD_MASK_RCNN_TORCHSCRIPT)
 
 install(TARGETS
     basecvnode
+    EXPORT basecvnodeTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
+)
+
+export(TARGETS
+    basecvnode
+    FILE ${PROJECT_BINARY_DIR}/basecvnodeTargets.cmake
 )
 
 ament_python_install_package(${PROJECT_NAME})
