@@ -31,6 +31,6 @@ def imageToMat(image: Image, encoding: str) -> np.ndarray:
         bridge = cv_bridge.CvBridge()
         cv_ptr = bridge.imgmsg_to_cv2(image, encoding)
     except cv_bridge.CvBridgeError as e:
-        rclpy.logging.get_logger("cvnode_base").error(e)
+        rclpy.logging.get_logger('cvnode_base').error(e)
         return np.array([])
     return cv_ptr

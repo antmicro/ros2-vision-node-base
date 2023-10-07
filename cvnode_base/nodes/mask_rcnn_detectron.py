@@ -176,15 +176,14 @@ class MaskRCNNDetectronNode(BaseCVNode):
         return msg
 
     def cleanup(self):
-        """
-        Cleanup allocated resources used by the node.
-        """
+        """Cleanup allocated resources used by the node."""
         del self.model
         del self.aug
         collect()
 
 
 def main(args=None):
+    """Run the MaskRCNNDetectronNode node."""
     rclpy.init(args=args)
     node = MaskRCNNDetectronNode()
     rclpy.spin(node)

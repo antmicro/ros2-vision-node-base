@@ -36,11 +36,11 @@ def export_tracing(model: GeneralizedRCNN,
     """
     def inference(model, inputs):
         inst = model.inference(inputs, do_postprocess=False)[0]
-        return [{"instances": inst}]
+        return [{'instances': inst}]
 
     traceable_model = TracingAdapter(model, inputs, inference)
     ts_model = torch.jit.trace(traceable_model, (inputs[0]['image'],))
-    with PathManager.open(os.path.join(output_path, "model.ts"), "wb") as f:
+    with PathManager.open(os.path.join(output_path, 'model.ts'), 'wb') as f:
         torch.jit.save(ts_model, f)
     return
 
@@ -63,15 +63,15 @@ def get_sample_inputs(image_path: str,
         List containing one dictionary with 'image' key and image tensor.
     """
     original_image = detection_utils.read_image(
-            image_path,
-            format=cfg.INPUT.FORMAT
+        image_path,
+        format=cfg.INPUT.FORMAT
     )
     aug = T.ResizeShortestEdge(
         [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST],
         cfg.INPUT.MAX_SIZE_TEST
     )
     image = aug.get_transform(original_image).apply_image(original_image)
-    image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
+    image = torch.as_tensor(image.astype('float32').transpose(2, 0, 1))
     return [{'image': image}]
 
 
@@ -93,29 +93,29 @@ def prepare_config() -> CfgNode:
     return cfg
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-            description="Export Mask R-CNN model to TorchScript"
+        description='Export Mask R-CNN model to TorchScript'
     )
     parser.add_argument(
-            "--image",
-            type=str,
-            required=True,
-            help="Path to image file used for model tracing"
+        '--image',
+        type=str,
+        required=True,
+        help='Path to image file used for model tracing'
     )
     parser.add_argument(
-            "--output",
-            type=str,
-            required=True,
-            help="Path to directory where model will be saved"
+        '--output',
+        type=str,
+        required=True,
+        help='Path to directory where model will be saved'
     )
 
     args = parser.parse_args()
     image_path = args.image
     output_path = args.output
 
-    assert os.path.isfile(image_path), "Image file does not exist"
-    assert os.path.isdir(output_path), "Output directory does not exist"
+    assert os.path.isfile(image_path), 'Image file does not exist'
+    assert os.path.isdir(output_path), 'Output directory does not exist'
 
     cfg = prepare_config()
     sample_inputs = get_sample_inputs(image_path, cfg)
@@ -126,4 +126,4 @@ if __name__ == "__main__":
 
     export_tracing(model, sample_inputs, output_path)
 
-    print(f"Model exported successfully to {os.path.join(output_path, 'model.ts')}")    # noqa: E501
+    print(f'Model exported successfully to {os.path.join(output_path, "model.ts")}')    # noqa: E501

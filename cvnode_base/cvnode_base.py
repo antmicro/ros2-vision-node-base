@@ -41,7 +41,7 @@ class BaseCVNode(Node):
 
         super().__init__(node_name)
 
-        self.registerNode("cvnode_register")
+        self.registerNode('cvnode_register')
 
     def registerNode(self, manage_service_name: str):
         """
@@ -60,7 +60,7 @@ class BaseCVNode(Node):
                                                       manage_service_name)
         if not self._manage_node_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().error(
-                    'Node manage service not available')
+                'Node manage service not available')
             return
 
         prepare_service_name = f'{self.get_name()}/prepare'
@@ -69,9 +69,9 @@ class BaseCVNode(Node):
 
         # Initialize services
         self._prepare_service = self.create_service(
-                Trigger,
-                prepare_service_name,
-                self._prepareCallback
+            Trigger,
+            prepare_service_name,
+            self._prepareCallback
         )
         qos_profile = QoSProfile(depth=1)
         self._process_service = self.create_service(
@@ -80,9 +80,9 @@ class BaseCVNode(Node):
             self._processCallback,
             qos_profile=qos_profile)
         self._cleanup_service = self.create_service(
-                Trigger,
-                cleanup_service_name,
-                self._cleanupCallback
+            Trigger,
+            cleanup_service_name,
+            self._cleanupCallback
         )
 
         # Create request for manage service
@@ -102,7 +102,7 @@ class BaseCVNode(Node):
 
             if not response.status:
                 error_msg = 'Register service call failed: ' + \
-                        response.message
+                    response.message
                 self.get_logger().error(error_msg)
                 return
 
@@ -151,15 +151,11 @@ class BaseCVNode(Node):
         raise NotImplementedError
 
     def cleanup(self):
-        """
-        Cleanup allocated resources used by the node.
-        """
+        """Cleanup allocated resources used by the node."""
         raise NotImplementedError
 
     def _unregisterNode(self):
-        """
-        Unregister node with service.
-        """
+        """Unregister node with service."""
         self.get_logger().debug('Unregistering node')
         if self._manage_node_client is None:
             self.get_logger().warn('Node was not registered')

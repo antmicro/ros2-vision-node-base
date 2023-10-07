@@ -12,7 +12,6 @@ from launch_ros.descriptions import ComposableNode
 
 def generate_launch_description():
     """Launches MaskRCNN node implemented in TorchScript."""
-
     model_path = DeclareLaunchArgument(
         'model_path',
         default_value='',
@@ -35,17 +34,17 @@ def generate_launch_description():
     )
     inference_timeout_ms = DeclareLaunchArgument(
         'inference_timeout_ms',
-        default_value="300",
+        default_value='300',
         description='Inference timeout in milliseconds'
     )
     preserve_output = DeclareLaunchArgument(
-            'preserver_output',
-            default_value='True',
-            description='Indicates whether manager should save output'
+        'preserver_output',
+        default_value='True',
+        description='Indicates whether manager should save output'
     )
     class_names_path = DeclareLaunchArgument(
-            'class_names_path',
-            description='Path to the file containing classes'
+        'class_names_path',
+        description='Path to the file containing classes'
     )
 
     mask_rcnn_node_container = ComposableNodeContainer(
@@ -93,18 +92,18 @@ def generate_launch_description():
     )
 
     cvnode_manager_gui_node = ComposableNodeContainer(
-            name='cvnode_manager_gui_container',
-            namespace='',
-            package='rclcpp_components',
-            executable='component_container',
-            composable_node_descriptions=[
-                ComposableNode(
-                    package='cvnode_manager',
-                    plugin='cvnode_manager::gui::CVNodeManagerGUI',
-                    name='cvnode_manager_gui',
-                ),
-            ],
-            output='both',
+        name='cvnode_manager_gui_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='cvnode_manager',
+                plugin='cvnode_manager::gui::CVNodeManagerGUI',
+                name='cvnode_manager_gui',
+            ),
+        ],
+        output='both',
     )
 
     kenning_cmd = 'python -m kenning test'
