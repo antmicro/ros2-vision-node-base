@@ -11,7 +11,12 @@
     "runtime":
     {
         "type": "kenning.core.runtime.Runtime",
-        "parameters": {}
+        "parameters": {},
+        "data_converter":
+        {
+            "type": "kenning.dataconverters.ros2_segmentation_dataconverter.ROS2SegmentationDataConverter",
+            "parameters": {}
+        }
     },
     "protocol":
     {
@@ -22,10 +27,5 @@
             "process_action_type_str": "kenning_computer_vision_msgs.action.SegmentationAction",
             "process_action_name": "cvnode_process"
         }
-    },
-    "dataconverter":
-    {
-        "type": "kenning.dataconverters.ros2_segmentation_dataconverter.ROS2SegmentationDataConverter",
-        "parameters": {}
     }
 }
