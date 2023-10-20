@@ -6,7 +6,7 @@
 
 # This script runs the Docker container for ROS 2 and CVNode integration
 
-DOCKER_IMAGE=${DOCKER_IMAGE:-ghcr.io/antmicro/ros2-cvnode-base:ros2-humble-cuda-torch}
+DOCKER_IMAGE=${DOCKER_IMAGE:-ghcr.io/antmicro/ros2-gui-node:kenning-ros2-demo}
 
 docker run -it \
     -v "$(pwd)":/data \
