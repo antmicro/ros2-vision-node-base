@@ -17,21 +17,16 @@ This demo requires:
 * [Docker](https://www.docker.com/) to use a prepared environment
 * [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) to provide access to the GPU in the Docker container
 
-All of the necessary build, runtime and development dependencies are provided in the [Dockerfile](./Dockerfile).
-It contains:
+All the necessary build, runtime and development dependencies are provided in the [ROS2 GuiNode Dockerfile](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/Dockerfile).
+For more details regarding this image reffer to the [ROS2 GuiNode](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/README.md).
 
-* [ROS 2 Humble](https://docs.ros.org/en/humble/index.html) environment
-* [OpenCV](https://github.com/opencv/opencv) for image processing
-* Dependencies for the [Kenning framework](https://github.com/antmicro/kenning)
-* [TorchLib](https://pytorch.org/cppdocs/) and [Detectron2](https://github.com/facebookresearch/detectron2/) targets for `MaskRCNN` node execution
-* CUDNN and CUDA libraries for faster acceleration on GPUs
-* Additional development tools
-
-It can be built from scratch with:
+The image can be pulled from the Docker registry using:
 
 ```bash
-sudo ./build-docker.sh
+docker pull ghcr.io/antmicro/ros2-gui-node:kenning-ros2-demo
 ```
+
+Alternatively, the image can be built manually by following the instructions in the [ROS2 GuiNode README](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/README.md).
 
 ## Preparing the environment
 
