@@ -44,7 +44,7 @@ mkdir cvnode && cd cvnode
 Then, all the dependencies can be downloaded using the `repo` tool:
 
 ```bash
-repo init -u https://github.com/antmicro/ros2-cvnode-base.git -m examples/mask_rcnn/manifest.xml -b main
+repo init -u https://github.com/antmicro/ros2-vision-node-base.git -m examples/mask_rcnn/manifest.xml -b main
 
 repo sync -j`nproc`
 ```
@@ -53,7 +53,7 @@ It downloads the following repositories:
 
 * [Kenning](https://github.com/antmicro/kenning) for providing input data and inference testing reports rendering.
 * [Detectron2](htpps://github.com/facebookresearch/detectron2) for exporting MaskRCNN model to TorchScript.
-* [ROS2 CVNodeManager](https://github.com/antmicro/ros2-cvnode-manager) for managing the inference testing flow.
+* [ROS2 CVNodeManager](https://github.com/antmicro/ros2-vision-node-manager) for managing the inference testing flow.
 * [Kenning's ROS2 messages and services](https://github.com/antmicro/ros2-kenning-computer-vision-msgs) for computer vision.
 * This repository, in the `src/cvnode_base` directory.
 
