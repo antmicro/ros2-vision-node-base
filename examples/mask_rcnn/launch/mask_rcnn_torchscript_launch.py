@@ -50,6 +50,10 @@ def generate_launch_description():
         'measurements',
         description='Path where measurements should be saved'
     )
+    report_path = DeclareLaunchArgument(
+        'report_path',
+        description='Path where rendered inference report should be saved'
+    )
 
     mask_rcnn_node_container = ComposableNodeContainer(
         name='mask_rcnn_node_container',
@@ -119,6 +123,13 @@ def generate_launch_description():
             LaunchConfiguration('measurements'),
             ' --verbosity ',
             LaunchConfiguration('log_level'),
+            ' && python -m kenning report ',
+            '--report-types detection ',
+            '--measurements ',
+            LaunchConfiguration('measurements'),
+            ' --report-path ',
+            LaunchConfiguration('report_path'),
+            ' --to-html'
             ]],
         on_exit=Shutdown(),
         shell=True,
@@ -140,5 +151,6 @@ def generate_launch_description():
         model_path,
         preserve_output,
         publish_visualizations,
+        report_path,
         scenario,
     ])
