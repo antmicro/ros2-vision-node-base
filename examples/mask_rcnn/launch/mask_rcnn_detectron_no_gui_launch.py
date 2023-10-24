@@ -36,6 +36,10 @@ def generate_launch_description():
         'class_names_path',
         description='Path to the file containing classes'
     )
+    measurements = DeclareLaunchArgument(
+        'measurements',
+        description='Path where measurements should be saved'
+    )
 
     mask_rcnn_node = Node(
         package='cvnode_base',
@@ -70,14 +74,18 @@ def generate_launch_description():
                    '--log-level', LaunchConfiguration('log_level')],
     )
 
-    kenning_cmd = 'python -m kenning test'
-    kenning_cmd += ' --json-cfg ./src/cvnode_base/examples/mask_rcnn/config/mask_rcnn_ros2_inference.json'     # noqa: E501
-    kenning_cmd += ' --measurements ./build/ros2-mask-rcnn-detectron-measurements.json'     # noqa: E501
-    kenning_cmd += ' --verbosity INFO'
     kenning_node = ExecuteProcess(
         name='kenning_node',
-        cmd=kenning_cmd.split(' '),
+        cmd=[[
+            'python -m kenning test ',
+            '--json-cfg ./src/cvnode_base/examples/mask_rcnn/config/mask_rcnn_ros2_inference.json '     # noqa: E501
+            '--measurements ',
+            LaunchConfiguration('measurements'),
+            ' --verbosity ',
+            LaunchConfiguration('log_level'),
+            ]],
         on_exit=Shutdown(),
+        shell=True,
     )
 
     return LaunchDescription([
@@ -91,6 +99,7 @@ def generate_launch_description():
         kenning_node,
         log_level,
         mask_rcnn_node,
+        measurements,
         preserve_output,
         scenario,
     ])
