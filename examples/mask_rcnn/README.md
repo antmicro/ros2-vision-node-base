@@ -173,6 +173,8 @@ ros2 launch cvnode_base mask_rcnn_detectron_launch.py \
     preserve_output:=False \
     scenario:=real_world_last \
     inference_timeout_ms:=100 \
+    measurements:=/data/build/ros2_detectron_measurements.json \
+    report_path:=/data/build/reports/detectron_real_world_last/report.md \
     log_level:=INFO
 ```
 
@@ -186,6 +188,8 @@ ros2 launch cvnode_base mask_rcnn_torchscript_launch.py \
     preserve_output:=False \
     scenario:=real_world_last \
     inference_timeout_ms:=100 \
+    measurements:=/data/build/ros2_torchscript_measurements.json \
+    report_path:=/data/build/reports/torchscript_real_world_last/report.md \
     log_level:=INFO
 ```
 
@@ -200,15 +204,8 @@ Where the parameters are:
     * `real_world_first` - tries to process first received frame
     * `synthetic` - ignores timeout and processes frames as fast as possible
 * `inference_timeout_ms` - timeout for inference in milliseconds. Used only by `real_world` scenarios
+* `measurements` - path to the file where inference measurements will be stored
+* `report_path` - path to the file where the rendered report will be stored
 * `log_level` - log level for running the demo
 
-Later, produced report can be rendered using `Kenning`'s CLI:
-
-```bash
-kenning report \
-    --measurements build/ros2-client-measurements.json \
-    --report-types performance detection \
-    --report-path build/report_detectron/report_detectron.md \
-    --to-html build/report_detectron/html
-```
-Generated report can be found in `build/report_detectron/report_detectron.md` for MarkDown, or `build/report_detectron/html/report_detectron.html` for HTML.
+Later, produced reports can be found under `/data/build/reports` directory.
