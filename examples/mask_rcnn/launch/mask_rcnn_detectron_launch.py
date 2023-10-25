@@ -102,20 +102,17 @@ def generate_launch_description():
     kenning_node = ExecuteProcess(
         name='kenning_node',
         cmd=[[
-            'python -m kenning test ',
+            'python -m kenning test report ',
             '--json-cfg ./src/cvnode_base/examples/mask_rcnn/config/mask_rcnn_ros2_inference.json '     # noqa: E501
             '--measurements ',
             LaunchConfiguration('measurements'),
             ' --verbosity ',
             LaunchConfiguration('log_level'),
-            ' && python -m kenning report ',
             '--report-types detection ',
-            '--measurements ',
-            LaunchConfiguration('measurements'),
             ' --report-path ',
             LaunchConfiguration('report_path'),
             ' --to-html'
-            ]],
+        ]],
         on_exit=Shutdown(),
         shell=True,
     )
