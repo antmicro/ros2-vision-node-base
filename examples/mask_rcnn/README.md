@@ -23,10 +23,10 @@ For more details regarding this image reffer to the [ROS2 GuiNode](https://githu
 The image can be pulled from the Docker registry using:
 
 ```bash
-docker pull ghcr.io/antmicro/ros2-gui-node:kenning-ros2-demo
+docker pull ghcr.io/antmicro/ros2-gui-node:vision-node-base
 ```
 
-Alternatively, the image can be built manually by following the instructions in the [ROS2 GuiNode README](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/README.md).
+Alternatively, the image can be built manually by following the instructions in the [ROS2 GuiNode README](https://github.com/antmicro/ros2-gui-node/blob/main/examples/vision-node-base/README.md).
 
 ## Preparing the environment
 
