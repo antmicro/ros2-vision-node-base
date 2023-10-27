@@ -108,8 +108,8 @@ def generate_launch_description():
             LaunchConfiguration('measurements'),
             ' --verbosity ',
             LaunchConfiguration('log_level'),
-            '--report-types detection ',
-            ' --report-path ',
+            ' --report-types detection ',
+            '--report-path ',
             LaunchConfiguration('report_path'),
             ' --to-html'
         ]],
