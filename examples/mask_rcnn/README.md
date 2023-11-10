@@ -17,16 +17,29 @@ This demo requires:
 * [Docker](https://www.docker.com/) to use a prepared environment
 * [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) to provide access to the GPU in the Docker container
 
-All the necessary build, runtime and development dependencies are provided in the [ROS2 GuiNode Dockerfile](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/Dockerfile).
-For more details regarding this image reffer to the [ROS2 GuiNode](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/README.md).
+All the necessary build, runtime and development dependencies are provided in the [Dockerfile](./Dockerfile).
+The image contains:
 
-The image can be pulled from the Docker registry using:
+* [ROS 2 Humble](https://docs.ros.org/en/humble/index.html) environment
+* [OpenCV](https://github.com/opencv/opencv) for image processing
+* Dependencies for the [Kenning framework](https://github.com/antmicro/kenning)
+* [TorchLib](https://pytorch.org/cppdocs/) and [Detectron2](https://github.com/facebookresearch/detectron2/) targets for `MaskRCNN` node execution
+* CUDNN and CUDA libraries for faster acceleration on GPUs
+* Additional development tools
+
+Docker image can be pulled from the Docker registry using:
 
 ```bash
-docker pull ghcr.io/antmicro/ros2-gui-node:vision-node-base
+docker pull ghcr.io/antmicro/ros2-vision-node-base:vision-node-base
 ```
 
-Alternatively, the image can be built manually by following the instructions in the [ROS2 GuiNode README](https://github.com/antmicro/ros2-gui-node/blob/main/examples/vision-node-base/README.md).
+Alternatively, the image can be built manually with [build-docker.sh](./build-docker.sh) script:
+
+```bash
+sudo ./build-docker.sh
+```
+
+For more details regarding base image refer to the [ROS2 GuiNode](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/README.md).
 
 ## Preparing the environment
 
