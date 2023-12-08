@@ -11,6 +11,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 option(BUILD_MASK_RCNN_TORCHSCRIPT "Builds node with TorchScript implementation of the MaskRCNN model" OFF)
+option(BUILD_YOLACT "Builds nodes for YOLACT instance segmentation model" OFF)
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
@@ -128,6 +129,15 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
         examples/mask_rcnn/launch/mask_rcnn_torchscript_no_gui_launch.py
         DESTINATION share/${PROJECT_NAME})
 endif(BUILD_MASK_RCNN_TORCHSCRIPT)
+
+if(BUILD_YOLACT)
+    install(PROGRAMS
+        cvnode_base/nodes/yolact_kenning.py
+        DESTINATION lib/${PROJECT_NAME})
+    install(FILES
+        examples/yolact/launch/yolact_kenning_launch.py
+        DESTINATION share/${PROJECT_NAME})
+endif(BUILD_YOLACT)
 
 #############
 
