@@ -67,14 +67,14 @@ class MaskRCNNDetectronNode(BaseCVNode):
         """
         class_names_path = self.get_parameter('class_names_path').value
         if not os.path.exists(class_names_path):
-            self.logger.error(f'File {class_names_path} does not exist')
+            self.get_logger().error(f'File {class_names_path} does not exist')
             return False
         with open(class_names_path, 'r') as f:
             reader = csv.reader(f)
             reader.__next__()
             self.classes = tuple([row[0] for row in reader])
             if not self.classes:
-                self.logger.error(f'File {class_names_path} is empty')
+                self.get_logger().error(f'File {class_names_path} is empty')
                 return False
 
         cfg = get_cfg()
