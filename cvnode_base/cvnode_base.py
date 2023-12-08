@@ -12,9 +12,10 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Image
 from std_srvs.srv import Trigger
+from abc import abstractmethod, ABC
 
 
-class BaseCVNode(Node):
+class BaseCVNode(Node, ABC):
     """
     Base class for tested computer vision nodes.
 
@@ -58,7 +59,7 @@ class BaseCVNode(Node):
 
         self._manage_node_client = self.create_client(ManageCVNode,
                                                       manage_service_name)
-        if not self._manage_node_client.wait_for_service(timeout_sec=1.0):
+        if not self._manage_node_client.wait_for_service(timeout_sec=5.0):
             self.get_logger().error(
                 'Node manage service not available')
             return
@@ -123,6 +124,7 @@ class BaseCVNode(Node):
             self._unregisterNode()
         super().destroy_node()
 
+    @abstractmethod
     def prepare(self) -> bool:
         """
         Prepare node and model for inference.
@@ -132,8 +134,9 @@ class BaseCVNode(Node):
         bool :
             True if preparation was successful, False otherwise.
         """
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
         """
         Run inference on the input data.
@@ -148,11 +151,12 @@ class BaseCVNode(Node):
         List[SegmentationMsg] :
             List of postprocessed segmentation messages.
         """
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def cleanup(self):
         """Cleanup allocated resources used by the node."""
-        raise NotImplementedError
+        ...
 
     def _unregisterNode(self):
         """Unregister node with service."""
