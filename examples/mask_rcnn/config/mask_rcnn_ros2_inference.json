@@ -10,7 +10,7 @@
     },
     "runtime":
     {
-        "type": "kenning.core.runtime.Runtime",
+        "type": "cvnode_base.runtimes.runtime.CVNodeRuntime",
         "parameters": {},
         "data_converter":
         {
