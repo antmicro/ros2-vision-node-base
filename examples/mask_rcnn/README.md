@@ -1,6 +1,6 @@
 # Instance segmentation inference testing with MaskRCNN
 
-This demo runs and instance segmentation algorithm on frames from COCO dataset.
+This demo runs an instance segmentation algorithm on frames from COCO dataset.
 The demo consists of four parts:
 
 * `CVNodeManager` - manages testing scenario and data flow between dataprovider and tested MaskRCNN node.
