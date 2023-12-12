@@ -33,7 +33,7 @@ def generate_launch_description():
         description='Inference timeout in milliseconds'
     )
     preserve_output = DeclareLaunchArgument(
-        'preserver_output',
+        'preserve_output',
         default_value='True',
         description='Indicates whether manager should save output'
     )
