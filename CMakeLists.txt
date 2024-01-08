@@ -125,9 +125,8 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
 
     install(FILES
         examples/mask_rcnn/launch/mask_rcnn_detectron_launch.py
-        examples/mask_rcnn/launch/mask_rcnn_detectron_no_gui_launch.py
+        examples/mask_rcnn/launch/mask_rcnn_onnx_launch.py
         examples/mask_rcnn/launch/mask_rcnn_torchscript_launch.py
-        examples/mask_rcnn/launch/mask_rcnn_torchscript_no_gui_launch.py
         DESTINATION share/${PROJECT_NAME})
 endif(BUILD_MASK_RCNN_TORCHSCRIPT)
 
