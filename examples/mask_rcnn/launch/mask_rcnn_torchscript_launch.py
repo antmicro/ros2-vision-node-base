@@ -1,4 +1,4 @@
-# Copyright 2022-2023 Antmicro <www.antmicro.com>
+# Copyright 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
 """Launches MaskRCNN node implemented in TorchScript."""
@@ -24,43 +24,102 @@ def generate_launch_description() -> LaunchDescription:
     LaunchDescription
         Launch description with all nodes and parameters.
     """
-    model_path = DeclareLaunchArgument(
-        "model_path",
-        default_value="",
-        description="Path to the TorchScript model file",
+    args = []
+
+    # Obligatory arguments
+    args.append(
+        DeclareLaunchArgument(
+            "model_path",
+            description="Path to the file containing Mask R-CNN model "
+            "in TorchScript format",
+        )
     )
-    log_level = DeclareLaunchArgument(
-        "log_level", default_value="INFO", description="Log level"
+    args.append(
+        DeclareLaunchArgument(
+            "class_names_path",
+            description="Path to the file containing classes",
+        )
     )
-    publish_visualizations = DeclareLaunchArgument(
-        "publish_visualizations",
-        default_value="False",
-        description="Publish visualizations",
+    args.append(
+        DeclareLaunchArgument(
+            "measurements",
+            description="Path where measurements should be saved",
+        )
     )
-    scenario = DeclareLaunchArgument(
-        "scenario",
-        default_value="synthetic",
-        description="Testing scenario strategy",
+    args.append(
+        DeclareLaunchArgument(
+            "report_path",
+            description="Path where rendered inference report should be saved",
+        )
     )
-    inference_timeout_ms = DeclareLaunchArgument(
-        "inference_timeout_ms",
-        default_value="300",
-        description="Inference timeout in milliseconds",
+
+    # Optional arguments
+    scenario = LaunchConfiguration("scenario", default="synthetic")
+    args.append(
+        DeclareLaunchArgument(
+            "scenario",
+            default_value="synthetic",
+            description="Testing scenario strategy. Possible values:\n"
+            "synthetic - Manager is waiting for previous frame inference "
+            "to finish before sending next frame\n"
+            "real_world_last - Manager is sending frames with `inference_timeout_ms` latency, "  # noqa: E501
+            "but skip previous frame inference if next frame is ready\n"
+            "real_world_first - Manager is sending frames with `inference_timeout_ms` latency, "  # noqa: E501
+            "but skip frame if previous frame inference is not finished\n",
+        )
     )
-    preserve_output = DeclareLaunchArgument(
-        "preserve_output",
-        default_value="True",
-        description="Indicates whether manager should save output",
+
+    inference_timeout_ms = LaunchConfiguration(
+        "inference_timeout_ms", default="300"
     )
-    class_names_path = DeclareLaunchArgument(
-        "class_names_path", description="Path to the file containing classes"
+    args.append(
+        DeclareLaunchArgument(
+            "inference_timeout_ms",
+            description="Inference timeout in milliseconds used by real_world_* scenarios",  # noqa: E501
+            default_value="300",
+        )
     )
-    measurements = DeclareLaunchArgument(
-        "measurements", description="Path where measurements should be saved"
+
+    preserve_output = LaunchConfiguration("preserve_output", default="False")
+    args.append(
+        DeclareLaunchArgument(
+            "preserve_output",
+            default_value="False",
+            description="Indicates whether manager should preserve output current frame output."  # noqa: E501
+            "Useful for real_world_* scenarios when frame inference "
+            "is timeouted so previous frame output is used",
+        )
     )
-    report_path = DeclareLaunchArgument(
-        "report_path",
-        description="Path where rendered inference report should be saved",
+
+    config_json = LaunchConfiguration(
+        "inference_configuration",
+        default="./src/cvnode_base/examples/config/coco_inference.json",
+    )
+    args.append(
+        DeclareLaunchArgument(
+            "inference_configuration",
+            default_value="./src/cvnode_base/examples/config/coco_inference.json",  # noqa: E501
+            description="Path to Kenning's JSON configuration file "
+            "with dataset, runtime and protocol specified.",
+        )
+    )
+
+    publish_visualizations = LaunchConfiguration(
+        "publish_visualizations", default="True"
+    )
+    args.append(
+        DeclareLaunchArgument(
+            "publish_visualizations",
+            description="Publish visualizations",
+            default_value="True",
+        )
+    )
+
+    log_level = LaunchConfiguration("log_level", default="INFO")
+    args.append(
+        DeclareLaunchArgument(
+            "log_level", description="Log level", default_value="INFO"
+        )
     )
 
     mask_rcnn_node_container = ComposableNodeContainer(
@@ -87,7 +146,7 @@ def generate_launch_description() -> LaunchDescription:
         arguments=[
             "--ros-args",
             "--log-level",
-            LaunchConfiguration("log_level"),
+            log_level,
         ],
     )
 
@@ -103,16 +162,10 @@ def generate_launch_description() -> LaunchDescription:
                 name="sample_cvnode_manager",
                 parameters=[
                     {
-                        "publish_visualizations": LaunchConfiguration(
-                            "publish_visualizations"
-                        ),  # noqa: E501
-                        "inference_timeout_ms": LaunchConfiguration(
-                            "inference_timeout_ms"
-                        ),  # noqa: E501
-                        "scenario": LaunchConfiguration("scenario"),
-                        "preserve_output": LaunchConfiguration(
-                            "preserve_output"
-                        ),
+                        "publish_visualizations": publish_visualizations,
+                        "inference_timeout_ms": inference_timeout_ms,
+                        "scenario": scenario,
+                        "preserve_output": preserve_output,
                     }
                 ],
             )
@@ -121,7 +174,7 @@ def generate_launch_description() -> LaunchDescription:
         arguments=[
             "--ros-args",
             "--log-level",
-            LaunchConfiguration("log_level"),
+            log_level,
         ],
     )
 
@@ -145,11 +198,12 @@ def generate_launch_description() -> LaunchDescription:
         cmd=[
             [
                 "python -m kenning test report ",
-                "--json-cfg ./src/cvnode_base/examples/mask_rcnn/config/mask_rcnn_ros2_inference.json "  # noqa: E501
-                "--measurements ",
+                "--json-cfg ",
+                config_json,
+                " --measurements ",
                 LaunchConfiguration("measurements"),
                 " --verbosity ",
-                LaunchConfiguration("log_level"),
+                log_level,
                 " --report-types detection ",
                 "--report-path ",
                 LaunchConfiguration("report_path"),
@@ -166,18 +220,10 @@ def generate_launch_description() -> LaunchDescription:
                 name="RCUTILS_CONSOLE_OUTPUT_FORMAT",
                 value="[{time}] [{severity}] [{name}] {function_name}: {message}",  # noqa: E501
             ),
-            class_names_path,
             cvnode_manager_gui_node,
             cvnode_manager_node,
-            inference_timeout_ms,
             kenning_node,
-            log_level,
             mask_rcnn_node_container,
-            measurements,
-            model_path,
-            preserve_output,
-            publish_visualizations,
-            report_path,
-            scenario,
-        ]
+            *args,
+        ],
     )
