@@ -1,4 +1,4 @@
-# Copyright 2022-2023 Antmicro <www.antmicro.com>
+# Copyright 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
 cmake_minimum_required(VERSION 3.8)
@@ -120,6 +120,7 @@ if (BUILD_MASK_RCNN_TORCHSCRIPT)
 
     install(PROGRAMS
         cvnode_base/nodes/mask_rcnn_detectron.py
+        cvnode_base/nodes/mask_rcnn_onnx.py
         DESTINATION lib/${PROJECT_NAME})
 
     install(FILES
