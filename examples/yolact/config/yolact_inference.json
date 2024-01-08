@@ -5,7 +5,9 @@
         "parameters":
         {
             "dataset_root": "./build/dataset",
-            "download_dataset": false
+            "download_dataset": false,
+            "split_fraction_test": 1.0,
+            "split_seed": 42
         }
     },
     "runtime":
