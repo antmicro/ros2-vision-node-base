@@ -1,4 +1,4 @@
-// Copyright 2022-2023 Antmicro <www.antmicro.com>
+// Copyright 2022-2024 Antmicro <www.antmicro.com>
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -74,6 +74,13 @@ bool MaskRCNNTorchScript::prepare()
         return false;
     }
     device = (*std::begin(model.buffers())).device();
+
+    // Warmup
+    for (int i = 0; i < 10; i++)
+    {
+        c10::IValue input = (torch::rand({3, 224, 224}, device) * 255).contiguous();
+        predict(input);
+    }
     return true;
 }
 
@@ -97,7 +104,7 @@ c10::IValue MaskRCNNTorchScript::preprocess(sensor_msgs::msg::Image &frame)
 {
     cv::Mat cv_image = imageToMat(frame, "bgr8");
     torch::Tensor tensor_image = torch::from_blob(cv_image.data, {cv_image.rows, cv_image.cols, 3}, torch::kUInt8);
-    tensor_image = tensor_image.to(device, torch::kFloat).permute({2, 0, 1}).contiguous();
+    tensor_image = tensor_image.to(device).permute({2, 0, 1}).contiguous();
     return tensor_image;
 }
 
