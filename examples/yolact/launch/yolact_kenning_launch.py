@@ -114,6 +114,19 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
+    config_json = LaunchConfiguration(
+        "inference_configuration",
+        default="./src/cvnode_base/examples/config/lindenthal_camera_traps_inference.json",  # noqa: E501
+    )
+    args.append(
+        DeclareLaunchArgument(
+            "inference_configuration",
+            default_value="./src/cvnode_base/examples/config/lindenthal_camera_traps_inference.json",  # noqa: E501
+            description="Path to Kenning's JSON configuration file "
+            "with dataset, runtime and protocol specified.",
+        )
+    )
+
     # Nodes
     yolact_node = Node(
         package="cvnode_base",
@@ -173,8 +186,9 @@ def generate_launch_description() -> LaunchDescription:
         cmd=[
             [
                 "python -m kenning test report ",
-                "--json-cfg ./src/cvnode_base/examples/yolact/config/yolact_inference.json "  # noqa: E501
-                "--measurements ",
+                "--json-cfg ",
+                config_json,
+                " --measurements ",
                 LaunchConfiguration("measurements"),
                 " --verbosity ",
                 log_level,
