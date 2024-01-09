@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2022-2023 Antmicro <www.antmicro.com>
+# Copyright 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -32,6 +32,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
     def __init__(self):
         super().__init__(node_name="mask_rcnn_detectron_node")
         self.declare_parameter("class_names_path", rclpy.Parameter.Type.STRING)
+        self.declare_parameter("model_path", rclpy.Parameter.Type.STRING)
+        self.declare_parameter("num_classes", rclpy.Parameter.Type.INTEGER)
 
     def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
         """
@@ -82,9 +84,14 @@ class MaskRCNNDetectronNode(BaseCVNode):
                 "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
             )
         )
-        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-            "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
-        )
+        cfg.MODEL.ROI_HEADS.NUM_CLASSES = self.get_parameter(
+            "num_classes"
+        ).value
+        cfg.MODEL.WEIGHTS = self.get_parameter("model_path").value
+        if cfg.MODEL.WEIGHTS == "COCO":
+            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+                "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
+            )
         self.model = build_model(cfg.clone())
         self.model.eval()
         checkpointer = DetectionCheckpointer(self.model)
