@@ -126,15 +126,20 @@ The script takes the following arguments:
 
 * `--image` - path to the image to run inference on
 * `--output` - path to the directory where the exported model will be stored
+* `--method` - method to export model with. Should be one of: onnx, torchscript
+* `--num-classes` - optional argument indicating amount of classes to use in model architecture
+* `--weights` - optional argument indicating path to the file storing weights.
+By default, fetches COCO pre-trained model weights from model zoo
 
-For example, to export the model to the `config` directory, run:
+For example, to export the model to the `TorchScript` and locate it in the `config` directory:
 
 ```bash
 curl http://images.cocodataset.org/val2017/000000000632.jpg --output image.jpg
 
 /data/src/cvnode_base/examples/mask_rcnn/export-model.py \
     --image image.jpg \
-    --output /data/src/cvnode_base/examples/mask_rcnn/config
+    --output /data/src/cvnode_base/examples/config \
+    --method torchscript
 ```
 
 This will download an image from the COCO dataset and export the model to the `config` directory.
@@ -142,13 +147,13 @@ Later, the model can be loaded with the `mask_rcnn_torchscript_launch.py` launch
 
 ## Building the MaskRCNN demo
 
-First of all, load the `setup.sh` script for ROS 2 tools, e.g.:
+Firstly, the ROS2 environment has to be sourced:
 
 ```bash
 source /opt/ros/setup.sh
 ```
 
-Then, build the GUI node and the Camera node with:
+Then, the GUI node and the Camera node can be build with:
 
 ```bash
 colcon build --base-path=src/ --packages-select \
@@ -181,7 +186,8 @@ A sample launch with the Python backend can be run with:
 
 ```bash
 ros2 launch cvnode_base mask_rcnn_detectron_launch.py \
-    class_names_path:=/data/src/cvnode_base/examples/mask_rcnn/config/coco_classes.csv \
+    class_names_path:=/data/src/cvnode_base/examples/config/coco_classes.csv \
+    inference_configuration:=/data/src/cvnode_base/examples/config/coco_inference.json \
     publish_visualizations:=True \
     preserve_output:=False \
     scenario:=real_world_last \
@@ -195,8 +201,9 @@ And with the C++ backend:
 
 ```bash
 ros2 launch cvnode_base mask_rcnn_torchscript_launch.py \
-    model_path:=/data/src/cvnode_base/examples/mask_rcnn/config/model.ts \
-    class_names_path:=/data/src/cvnode_base/examples/mask_rcnn/config/coco_classes.csv \
+    model_path:=/data/src/cvnode_base/examples/config/model.ts \
+    class_names_path:=/data/src/cvnode_base/examples/config/coco_classes.csv \
+    inference_configuration:=/data/src/cvnode_base/examples/config/coco_inference.json \
     publish_visualizations:=True \
     preserve_output:=False \
     scenario:=real_world_last \
@@ -210,6 +217,7 @@ Where the parameters are:
 
 * `model_path` - path to the TorchScript model
 * `class_names_path` - path to the CSV file with class names
+* `inference_configuration` - path to the JSON file with Kenning's inference configuration
 * `publish_visualizations` - whether to publish visualizations for the GUI
 * `preserve_output` - whether to preserve the output of the last inference if timeout is reached
 * `scenario` - scenario to run the demo in, one of:
