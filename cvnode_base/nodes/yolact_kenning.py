@@ -15,7 +15,7 @@ from kenning.modelwrappers.instance_segmentation.yolact import YOLACT
 from kenning_computer_vision_msgs.msg import BoxMsg, MaskMsg, SegmentationMsg
 
 from cvnode_base.cvnode_base import BaseCVNode
-from cvnode_base.utils import imageToMat
+from cvnode_base.utils.image import imageToMat
 
 
 class YOLACTOnnx:

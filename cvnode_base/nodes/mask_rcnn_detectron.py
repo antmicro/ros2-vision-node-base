@@ -23,7 +23,7 @@ from torch import as_tensor
 from torch.cuda import empty_cache
 
 from cvnode_base.cvnode_base import BaseCVNode
-from cvnode_base.utils import imageToMat
+from cvnode_base.utils.image import imageToMat
 
 
 class MaskRCNNDetectronNode(BaseCVNode):

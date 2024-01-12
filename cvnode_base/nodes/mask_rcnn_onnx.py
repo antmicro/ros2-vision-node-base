@@ -21,7 +21,7 @@ from sensor_msgs.msg import Image
 from torch.cuda import empty_cache
 
 from cvnode_base.cvnode_base import BaseCVNode
-from cvnode_base.utils import imageToMat
+from cvnode_base.utils.image import imageToMat
 
 
 class MaskRCNNONNXNode(BaseCVNode):

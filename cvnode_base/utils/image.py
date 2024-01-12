@@ -1,7 +1,7 @@
-# Copyright (c) 2022-2023 Antmicro <www.antmicro.com>
+# Copyright (c) 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
-"""Contains utility functions for cvnode_base."""
+"""Contains utility functions for Image messages manipulation."""
 
 import cv_bridge
 import numpy as np
