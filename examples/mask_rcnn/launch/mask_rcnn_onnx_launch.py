@@ -4,14 +4,14 @@
 """Launches MaskRCNN node with ONNXRuntime backend."""
 
 from launch import LaunchDescription
-from launch.actions import SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer, Node
-from launch_ros.descriptions import ComposableNode
+from launch_ros.actions import Node
 
-from cvnode_base.utils.launch import (
+from cvnode_base.utils.launch_helper import (
     common_parameters,
     cvnode_manager_gui_node,
+    cvnode_manager_node,
     kenning_test_report_node,
 )
 
@@ -26,6 +26,14 @@ def generate_launch_description() -> LaunchDescription:
         Launch description with all nodes and parameters.
     """
     args, optional_args = common_parameters()
+
+    # Obligatory arguments
+    args.append(
+        DeclareLaunchArgument(
+            "class_names_path",
+            description="Path to the file containing classes",
+        )
+    )
 
     # Arguments with default values
     scenario, scenario_arg = optional_args["scenario"]
@@ -46,9 +54,6 @@ def generate_launch_description() -> LaunchDescription:
         ]
     )
 
-    kenning_node = kenning_test_report_node(log_level)
-    gui_node = cvnode_manager_gui_node()
-
     mask_rcnn_node = Node(
         package="cvnode_base",
         executable="mask_rcnn_onnx.py",
@@ -63,28 +68,14 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
-    cvnode_manager_node = ComposableNodeContainer(
-        name="cvnode_manager_container",
-        namespace="",
-        package="rclcpp_components",
-        executable="component_container",
-        composable_node_descriptions=[
-            ComposableNode(
-                package="cvnode_manager",
-                plugin="cvnode_manager::CVNodeManager",
-                name="sample_cvnode_manager",
-                parameters=[
-                    {
-                        "publish_visualizations": publish_visualizations,
-                        "inference_timeout_ms": inference_timeout_ms,
-                        "scenario": scenario,
-                        "preserve_output": preserve_output,
-                    }
-                ],
-            )
-        ],
-        output="both",
-        arguments=["--ros-args", "--log-level", log_level],
+    kenning_node = kenning_test_report_node(log_level)
+    gui_node = cvnode_manager_gui_node(log_level)
+    manager_node = cvnode_manager_node(
+        log_level=log_level,
+        visualizations=publish_visualizations,
+        timeout=inference_timeout_ms,
+        preserve=preserve_output,
+        scenario=scenario,
     )
 
     return LaunchDescription(
@@ -93,7 +84,7 @@ def generate_launch_description() -> LaunchDescription:
                 name="RCUTILS_CONSOLE_OUTPUT_FORMAT",
                 value="[{time}] [{severity}] [{name}] {function_name}: {message}",  # noqa: E501
             ),
-            cvnode_manager_node,
+            manager_node,
             gui_node,
             kenning_node,
             mask_rcnn_node,
