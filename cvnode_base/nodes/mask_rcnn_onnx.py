@@ -6,16 +6,16 @@
 
 """CVNode with Mask R-CNN model in ONNX format."""
 
-import onnxruntime as ort
-import numpy as np
 import csv
 import os
-import cv2
-from gc import collect
-from typing import Tuple, List
-
-import rclpy
 import traceback
+from gc import collect
+from typing import List, Tuple
+
+import cv2
+import numpy as np
+import onnxruntime as ort
+import rclpy
 from kenning_computer_vision_msgs.msg import BoxMsg, MaskMsg, SegmentationMsg
 from sensor_msgs.msg import Image
 from torch.cuda import empty_cache
@@ -28,7 +28,6 @@ class MaskRCNNONNXNode(BaseCVNode):
     """The ONNX implementation of a Mask R-CNN model in a CVNode."""
 
     def __init__(self):
-        """Initialize node."""
         super().__init__(node_name="mask_rcnn_onnx_node")
         self.declare_parameter("class_names_path", rclpy.Parameter.Type.STRING)
         self.declare_parameter("model_path", rclpy.Parameter.Type.STRING)
@@ -45,7 +44,7 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         Returns
         -------
-        List[SegmentationMsg] :
+        List[SegmentationMsg]
             List of postprocessed segmentation messages.
         """
         result = []
@@ -62,7 +61,7 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         Returns
         -------
-        bool :
+        bool
             True if the node is ready for execution, False otherwise.
         """
         # Load class names
@@ -70,7 +69,7 @@ class MaskRCNNONNXNode(BaseCVNode):
         if not os.path.exists(class_names_path):
             self.get_logger().error(f"File {class_names_path} does not exist")
             return False
-        with open(class_names_path, 'r') as f:
+        with open(class_names_path, "r") as f:
             reader = csv.reader(f)
             reader.__next__()
             self.classes = tuple([row[0] for row in reader])
@@ -80,13 +79,14 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         # Load model
         providers = {
-                "cpu": "CPUExecutionProvider", "cuda": "CUDAExecutionProvider"
+            "cpu": "CPUExecutionProvider",
+            "cuda": "CUDAExecutionProvider",
         }
         device = self.get_parameter("device").value
         if device not in providers:
             self.get_logger().error(f"Device '{device}' is not supported")
             self.get_logger().error(
-                    f"Supported devices: {list(providers.keys())}"
+                f"Supported devices: {list(providers.keys())}"
             )
             return False
         model_path = self.get_parameter("model_path").value
@@ -96,7 +96,7 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         try:
             self.model = ort.InferenceSession(
-                    model_path, providers=[providers[device]]
+                model_path, providers=[providers[device]]
             )
         except (TypeError, ValueError, RuntimeError):
             self.get_logger().error("Could not load ONNX model")
@@ -112,9 +112,13 @@ class MaskRCNNONNXNode(BaseCVNode):
         # Warmup the model
         if device == "cuda":
             for _ in range(5):
-                noise = np.random.randint(
-                    0, high=256, size=np.prod(self.input_shape)
-                ).reshape(self.input_shape).astype(np.uint8)
+                noise = (
+                    np.random.randint(
+                        0, high=256, size=np.prod(self.input_shape)
+                    )
+                    .reshape(self.input_shape)
+                    .astype(np.uint8)
+                )
                 self.model.run(self.output_names, {self.input_name: noise})
         return True
 
@@ -129,13 +133,15 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         Returns
         -------
-        np.array :
+        np.array
             Resized image compatible with the model input shape.
         """
         img = imageToMat(frame, "rgb8")
         image_shape = (self.input_shape[-1], self.input_shape[-2])
         img = cv2.resize(
-            img, image_shape, interpolation=cv2.INTER_LINEAR,
+            img,
+            image_shape,
+            interpolation=cv2.INTER_LINEAR,
         )
         img = img.transpose((2, 0, 1))
         return img
@@ -151,13 +157,14 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         Returns
         -------
-        List[np.ndarray] :
+        List[np.ndarray]
             List of predictions.
         """
         return self.model.run(self.output_names, {self.input_name: X})
 
     def postprocess(
-            self, Y: List[np.ndarray], frame: Image) -> SegmentationMsg:
+        self, Y: List[np.ndarray], frame: Image
+    ) -> SegmentationMsg:
         """
         Postprocess model predictions.
 
@@ -170,7 +177,7 @@ class MaskRCNNONNXNode(BaseCVNode):
 
         Returns
         -------
-        SegmentationMsg :
+        SegmentationMsg
             Postprocessed model predictions in the form of SegmentationMsg.
         """
         msg = SegmentationMsg()
@@ -209,11 +216,12 @@ class MaskRCNNONNXNode(BaseCVNode):
         return msg
 
     def resize_masks(
-            self,
-            masks: np.ndarray,
-            boxes: np.ndarray,
-            image_shape: Tuple[int, int],
-            threshold: float = 0.5) -> np.ndarray:
+        self,
+        masks: np.ndarray,
+        boxes: np.ndarray,
+        image_shape: Tuple[int, int],
+        threshold: float = 0.5,
+    ) -> np.ndarray:
         """
         Resize masks to the original image shape.
 
@@ -244,11 +252,15 @@ class MaskRCNNONNXNode(BaseCVNode):
         )
         for i, (mask, box) in enumerate(zip(masks, boxes)):
             int_box = box.astype(np.int32)
-            mask_shape = (max(int_box[2] - int_box[0], 1),
-                          max(int_box[3] - int_box[1], 1))
+            mask_shape = (
+                max(int_box[2] - int_box[0], 1),
+                max(int_box[3] - int_box[1], 1),
+            )
             mask = cv2.resize(mask, mask_shape)
             mask = (mask > threshold).astype(np.uint8)
-            resized_masks[i, int_box[1]:int_box[3], int_box[0]:int_box[2]] = mask   # noqa: E501
+            resized_masks[
+                i, int_box[1] : int_box[3], int_box[0] : int_box[2]
+            ] = mask
         return resized_masks
 
     def cleanup(self):

@@ -1,9 +1,10 @@
-# Copyright 2022-2023 Antmicro <www.antmicro.com>
+# Copyright 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
 
 """Base class for computer vision nodes."""
 
+from abc import ABC, abstractmethod
 from typing import List
 
 from kenning_computer_vision_msgs.msg import SegmentationMsg
@@ -12,7 +13,6 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from sensor_msgs.msg import Image
 from std_srvs.srv import Trigger
-from abc import abstractmethod, ABC
 
 
 class BaseCVNode(Node, ABC):
@@ -24,14 +24,6 @@ class BaseCVNode(Node, ABC):
     """
 
     def __init__(self, node_name: str):
-        """
-        Initialize the node.
-
-        Parameters
-        ----------
-        node_name : str
-            Name of the node.
-        """
         # Service client for node management
         self._manage_node_client = None
 
@@ -42,9 +34,9 @@ class BaseCVNode(Node, ABC):
 
         super().__init__(node_name)
 
-        self.registerNode('cvnode_register')
+        self.registerNode("cvnode_register")
 
-    def registerNode(self, manage_service_name: str):
+    def registerNode(self, manage_service_name: str) -> None:
         """
         Register node with the manage service.
 
@@ -53,37 +45,34 @@ class BaseCVNode(Node, ABC):
         manage_service_name : str
             Name of the service for nodes management.
         """
-        self.get_logger().debug('Registering node')
+        self.get_logger().debug("Registering node")
         if self._manage_node_client:
             self._unregisterNode()
 
-        self._manage_node_client = self.create_client(ManageCVNode,
-                                                      manage_service_name)
+        self._manage_node_client = self.create_client(
+            ManageCVNode, manage_service_name
+        )
         if not self._manage_node_client.wait_for_service(timeout_sec=5.0):
-            self.get_logger().error(
-                'Node manage service not available')
+            self.get_logger().error("Node manage service not available")
             return
 
-        prepare_service_name = f'{self.get_name()}/prepare'
-        process_service_name = f'{self.get_name()}/process'
-        cleanup_service_name = f'{self.get_name()}/cleanup'
+        prepare_service_name = f"{self.get_name()}/prepare"
+        process_service_name = f"{self.get_name()}/process"
+        cleanup_service_name = f"{self.get_name()}/cleanup"
 
         # Initialize services
         self._prepare_service = self.create_service(
-            Trigger,
-            prepare_service_name,
-            self._prepareCallback
+            Trigger, prepare_service_name, self._prepareCallback
         )
         qos_profile = QoSProfile(depth=1)
         self._process_service = self.create_service(
             SegmentCVNodeSrv,
             process_service_name,
             self._processCallback,
-            qos_profile=qos_profile)
+            qos_profile=qos_profile,
+        )
         self._cleanup_service = self.create_service(
-            Trigger,
-            cleanup_service_name,
-            self._cleanupCallback
+            Trigger, cleanup_service_name, self._cleanupCallback
         )
 
         # Create request for manage service
@@ -96,18 +85,17 @@ class BaseCVNode(Node, ABC):
 
         def register_callback(future):
             response = future.result()
-            self.get_logger().debug('Received register response')
+            self.get_logger().debug("Received register response")
             if not response:
-                self.get_logger().error('Service call failed.')
+                self.get_logger().error("Service call failed.")
                 return
 
             if not response.status:
-                error_msg = 'Register service call failed: ' + \
-                    response.message
+                error_msg = "Register service call failed: " + response.message
                 self.get_logger().error(error_msg)
                 return
 
-            self.get_logger().debug('Register service call succeeded')
+            self.get_logger().debug("Register service call succeeded")
             return
 
         future = self._manage_node_client.call_async(request)
@@ -119,7 +107,7 @@ class BaseCVNode(Node, ABC):
 
         Unregisters node if was registered.
         """
-        self.get_logger().debug('Destroying node')
+        self.get_logger().debug("Destroying node")
         if self._manage_node_client:
             self._unregisterNode()
         super().destroy_node()
@@ -131,7 +119,7 @@ class BaseCVNode(Node, ABC):
 
         Returns
         -------
-        bool :
+        bool
             True if preparation was successful, False otherwise.
         """
         ...
@@ -148,7 +136,7 @@ class BaseCVNode(Node, ABC):
 
         Returns
         -------
-        List[SegmentationMsg] :
+        List[SegmentationMsg]
             List of postprocessed segmentation messages.
         """
         ...
@@ -160,9 +148,9 @@ class BaseCVNode(Node, ABC):
 
     def _unregisterNode(self):
         """Unregister node with service."""
-        self.get_logger().debug('Unregistering node')
+        self.get_logger().debug("Unregistering node")
         if self._manage_node_client is None:
-            self.get_logger().warn('Node was not registered')
+            self.get_logger().warn("Node was not registered")
             return
         request = ManageCVNode.Request()
         request.type = request.UNREGISTER
@@ -170,10 +158,11 @@ class BaseCVNode(Node, ABC):
 
         self._manage_node_client.call_async(request)
         self._manage_node_client = None
-        self.get_logger().debug('Node unregistered')
+        self.get_logger().debug("Node unregistered")
 
-    def _prepareCallback(self, request: Trigger.Request,
-                         response: Trigger.Response) -> Trigger.Response:
+    def _prepareCallback(
+        self, request: Trigger.Request, response: Trigger.Response
+    ) -> Trigger.Response:
         """
         Callback for the prepare service.
 
@@ -188,21 +177,23 @@ class BaseCVNode(Node, ABC):
 
         Returns
         -------
-        Trigger.Response :
+        Trigger.Response
             Processed response for the prepare service client.
         """
-        self.get_logger().debug('Preparing node')
+        self.get_logger().debug("Preparing node")
         if not self.prepare():
-            self.get_logger().error('Node preparation failed')
+            self.get_logger().error("Node preparation failed")
             response.success = False
             return response
         response.success = True
-        self.get_logger().debug('Node prepared')
+        self.get_logger().debug("Node prepared")
         return response
 
-    def _processCallback(self, request: SegmentCVNodeSrv.Request,
-                         response: SegmentCVNodeSrv.Response
-                         ) -> SegmentCVNodeSrv.Response:
+    def _processCallback(
+        self,
+        request: SegmentCVNodeSrv.Request,
+        response: SegmentCVNodeSrv.Response,
+    ) -> SegmentCVNodeSrv.Response:
         """
         Callback for the process service.
 
@@ -217,17 +208,18 @@ class BaseCVNode(Node, ABC):
 
         Returns
         -------
-        SegmentCVNodeSrv.Response :
+        SegmentCVNodeSrv.Response
             Processed response for the process service client.
         """
-        self.get_logger().debug('Executing inference on input data')
+        self.get_logger().debug("Executing inference on input data")
         response.output = self.run_inference(request.input)
         response.success = True
-        self.get_logger().debug('Inference executed')
+        self.get_logger().debug("Inference executed")
         return response
 
-    def _cleanupCallback(self, request: Trigger.Request,
-                         response: Trigger.Response) -> Trigger.Response:
+    def _cleanupCallback(
+        self, request: Trigger.Request, response: Trigger.Response
+    ) -> Trigger.Response:
         """
         Callback for the cleanup service.
 
@@ -242,10 +234,10 @@ class BaseCVNode(Node, ABC):
 
         Returns
         -------
-        Trigger.Response :
+        Trigger.Response
             Processed response for the cleanup service client.
         """
-        self.get_logger().debug('Cleaning up node')
+        self.get_logger().debug("Cleaning up node")
         self.cleanup()
         response.success = True
         return response

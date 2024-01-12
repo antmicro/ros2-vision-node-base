@@ -30,9 +30,8 @@ class MaskRCNNDetectronNode(BaseCVNode):
     """The Detectron2 implementation of a Mask R-CNN model in a CVNode."""
 
     def __init__(self):
-        """Initialize node."""
-        super().__init__(node_name='mask_rcnn_detectron_node')
-        self.declare_parameter('class_names_path', rclpy.Parameter.Type.STRING)
+        super().__init__(node_name="mask_rcnn_detectron_node")
+        self.declare_parameter("class_names_path", rclpy.Parameter.Type.STRING)
 
     def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
         """
@@ -45,7 +44,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
         Returns
         -------
-        List[SegmentationMsg] :
+        List[SegmentationMsg]
             List of postprocessed segmentation messages.
         """
         result = []
@@ -62,33 +61,38 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
         Returns
         -------
-        bool :
+        bool
             True if the node is ready for execution, False otherwise.
         """
-        class_names_path = self.get_parameter('class_names_path').value
+        class_names_path = self.get_parameter("class_names_path").value
         if not os.path.exists(class_names_path):
-            self.get_logger().error(f'File {class_names_path} does not exist')
+            self.get_logger().error(f"File {class_names_path} does not exist")
             return False
-        with open(class_names_path, 'r') as f:
+        with open(class_names_path, "r") as f:
             reader = csv.reader(f)
             reader.__next__()
             self.classes = tuple([row[0] for row in reader])
             if not self.classes:
-                self.get_logger().error(f'File {class_names_path} is empty')
+                self.get_logger().error(f"File {class_names_path} is empty")
                 return False
 
         cfg = get_cfg()
-        cfg.merge_from_file(model_zoo.get_config_file(
-            'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml'))
+        cfg.merge_from_file(
+            model_zoo.get_config_file(
+                "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
+            )
+        )
         cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-            'COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml')
+            "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
+        )
         self.model = build_model(cfg.clone())
         self.model.eval()
         checkpointer = DetectionCheckpointer(self.model)
         checkpointer.load(cfg.MODEL.WEIGHTS)
         self.aug = ResizeShortestEdge(
             [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST],
-            cfg.INPUT.MAX_SIZE_TEST)
+            cfg.INPUT.MAX_SIZE_TEST,
+        )
         return True
 
     def preprocess(self, frame: Image) -> Dict:
@@ -102,15 +106,17 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
         Returns
         -------
-        Dict :
+        Dict
             Preprocessed data compatible with the model.
         """
-        img = imageToMat(frame, 'bgr8')
+        img = imageToMat(frame, "bgr8")
         augmented = self.aug.get_transform(img).apply_image(img)
-        augmented = as_tensor(
-            augmented.astype('float32').transpose(2, 0, 1))
-        return {'image': augmented, 'height': frame.height,
-                'width': frame.width}
+        augmented = as_tensor(augmented.astype("float32").transpose(2, 0, 1))
+        return {
+            "image": augmented,
+            "height": frame.height,
+            "width": frame.width,
+        }
 
     def predict(self, X: Dict) -> Dict:
         """
@@ -123,7 +129,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
         Returns
         -------
-        Dict :
+        Dict
             Model predictions.
         """
         return self.model([X])[0]
@@ -141,18 +147,18 @@ class MaskRCNNDetectronNode(BaseCVNode):
 
         Returns
         -------
-        SegmentationMsg :
+        SegmentationMsg
             Postprocessed model predictions in the form of SegmentationMsg.
         """
         msg = SegmentationMsg()
         msg._frame = frame
-        prediction = Y['instances']
+        prediction = Y["instances"]
         scores = prediction.scores.cpu().detach().numpy()
 
         for mask_np in prediction.pred_masks.cpu().detach().numpy():
             mask = MaskMsg()
             mask._dimension = [mask_np.shape[0], mask_np.shape[1]]
-            mask._data = mask_np.flatten().astype('uint8')
+            mask._data = mask_np.flatten().astype("uint8")
             msg._masks.append(mask)
 
         boxes = prediction.pred_boxes.tensor
@@ -191,5 +197,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
