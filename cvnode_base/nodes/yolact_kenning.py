@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2022-2023 Antmicro <www.antmicro.com>
+# Copyright 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -25,6 +25,7 @@ class YOLACTOnnx:
 
     def __init__(self, node: BaseCVNode):
         self.node = node  # ROS2 node
+        self.node.declare_parameter("device", rclpy.Parameter.Type.STRING)
 
     def prepare(self) -> bool:
         """
@@ -47,12 +48,25 @@ class YOLACTOnnx:
             self.node.get_logger().error(f"File {model_path} does not exist")
             return False
         self.model = YOLACT(model_path, None)
+
+        device = self.node.get_parameter("device").value
+        if not device:
+            self.node.get_logger().error(
+                "Please specify device for TVM runtime"
+            )
+            return False
+        if device == "cpu":
+            execution_providers = ["CPUExecutionProvider"]
+        elif device == "cuda":
+            execution_providers = ["GPUExecutionProvider"]
+        else:
+            self.node.get_logger().error(
+                f"Device {device} is not supported by ONNX runtime"
+            )
+            return False
         self.runtime = ONNXRuntime(
             model_path,
-            execution_providers=[
-                "CPUExecutionProvider",
-                "GPUExecutionProvider",
-            ],
+            execution_providers=execution_providers,
             disable_performance_measurements=True,
         )
         ret = self.runtime.prepare_local()
