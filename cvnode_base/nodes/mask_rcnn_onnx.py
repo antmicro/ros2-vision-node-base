@@ -20,7 +20,7 @@ from kenning_computer_vision_msgs.msg import BoxMsg, MaskMsg, SegmentationMsg
 from sensor_msgs.msg import Image
 from torch.cuda import empty_cache
 
-from cvnode_base.cvnode_base import BaseCVNode
+from cvnode_base.core.cvnode_base import BaseCVNode
 from cvnode_base.utils.image import imageToMat
 
 
