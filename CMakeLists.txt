@@ -139,6 +139,7 @@ endif(BUILD_MASK_RCNN)
 if(BUILD_YOLACT)
     install(PROGRAMS
         cvnode_base/nodes/yolact_kenning.py
+        cvnode_base/nodes/yolact_tensorrt.py
         DESTINATION lib/${PROJECT_NAME})
     install(FILES
         examples/yolact/launch/yolact_kenning_launch.py
