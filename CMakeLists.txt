@@ -128,6 +128,7 @@ if(BUILD_MASK_RCNN)
     install(PROGRAMS
         cvnode_base/nodes/mask_rcnn_detectron.py
         cvnode_base/nodes/mask_rcnn_onnx.py
+        cvnode_base/nodes/mask_rcnn_tensorrt.py
         DESTINATION lib/${PROJECT_NAME})
     install(FILES
         examples/mask_rcnn/launch/mask_rcnn_detectron_launch.py
