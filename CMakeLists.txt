@@ -133,6 +133,7 @@ if(BUILD_MASK_RCNN)
     install(FILES
         examples/mask_rcnn/launch/mask_rcnn_detectron_launch.py
         examples/mask_rcnn/launch/mask_rcnn_onnx_launch.py
+        examples/mask_rcnn/launch/mask_rcnn_tensorrt_launch.py
         DESTINATION share/${PROJECT_NAME})
 endif(BUILD_MASK_RCNN)
 
