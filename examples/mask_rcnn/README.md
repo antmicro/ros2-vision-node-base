@@ -160,13 +160,13 @@ colcon build --base-path=src/ --packages-select \
     kenning_computer_vision_msgs \
     cvnode_base \
     cvnode_manager \
-    --cmake-args ' -DBUILD_GUI=ON' ' -DBUILD_MASK_RCNN_TORCHSCRIPT=ON' ' -DBUILD_TORCHVISION=ON'
+    --cmake-args ' -DBUILD_GUI=ON' ' -DBUILD_MASK_RCNN=ON ' ' -DBUILD_MASK_RCNN_TORCHSCRIPT=ON' ' -DBUILD_TORCHVISION=ON'
 ```
 
 Where the `--cmake-args` are:
 
 * `-DBUILD_GUI=ON` - builds the GUI for CVNodeManager
-* `-DBUILD_MASK_RCNN_TORCHSCRIPT=ON` - builds the MaskRCNN demos
+* `-D BUILD_MASK_RCNN=ON and ' -DBUILD_MASK_RCNN_TORCHSCRIPT=ON` - builds the MaskRCNN demos
 * `-DBUILD_TORCHVISION=ON` - builds the TorchVision library needed for MaskRCNN
 
 Build targets then can be sourced with:
