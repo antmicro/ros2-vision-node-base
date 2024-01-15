@@ -144,6 +144,7 @@ if(BUILD_YOLACT)
         DESTINATION lib/${PROJECT_NAME})
     install(FILES
         examples/yolact/launch/yolact_kenning_launch.py
+        examples/yolact/launch/yolact_tensorrt_launch.py
         DESTINATION share/${PROJECT_NAME})
 endif(BUILD_YOLACT)
 
