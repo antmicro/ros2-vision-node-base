@@ -1,0 +1,12 @@
+cuda-python
+detectron2 @ git+https://github.com/facebookresearch/detectron2.git@8c4a333ceb8df05348759443d0206302485890e0
+kenning[object_detection,reports] @ git+https://github.com/antmicro/kenning.git
+nvidia-pyindex
+onnx
+onnx_graphsurgeon
+onnxruntime
+opencv-python
+tensorrt
+torch
+torchvision
+typing_extensions==4.4.0
