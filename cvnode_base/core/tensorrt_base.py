@@ -1,6 +1,7 @@
 # Copyright (c) 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
+
 """Base class for TensorRT CVNodes."""
 
 from typing import List

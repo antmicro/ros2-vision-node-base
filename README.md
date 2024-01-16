@@ -1,6 +1,6 @@
 # ROS2 CVNode
 
-Copyright (c) 2022-2023 [Antmicro](https://www.antmicro.com)
+Copyright (c) 2022-2024 [Antmicro](https://www.antmicro.com)
 
 `CVNode` is a ROS2 node designed to facilitate the integration of computer vision algorithms into an inference testing infrastructure.
 

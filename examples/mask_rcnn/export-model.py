@@ -3,6 +3,7 @@
 # Copyright (c) 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
+
 """Export Mask R-CNN model to TorchScript or ONNX format."""
 
 # NOTE: Was verified for detectron2@8c4a333ceb8df05348759443d0206302485890e0

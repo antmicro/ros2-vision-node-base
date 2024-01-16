@@ -1,6 +1,7 @@
 # Copyright (c) 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
+
 """Contains utility functions to work with TensorRT."""
 
 from typing import Any, Callable, Union

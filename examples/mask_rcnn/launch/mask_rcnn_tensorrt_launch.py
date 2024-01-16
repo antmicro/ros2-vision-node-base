@@ -1,6 +1,7 @@
 # Copyright 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
+
 """Launches MaskRCNN node with TensorRT backend."""
 
 from launch import LaunchDescription

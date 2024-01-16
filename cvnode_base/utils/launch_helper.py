@@ -1,6 +1,7 @@
 # Copyright (c) 2022-2024 Antmicro <www.antmicro.com>
 #
 # SPDX-License-Identifier: Apache-2.0
+
 """Helper functions for launch scripts construction."""
 
 from typing import Dict, List, Tuple
