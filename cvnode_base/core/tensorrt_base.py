@@ -34,32 +34,32 @@ class CVNodeTensorRTBase(BaseCVNode):
             engine = runtime.deserialize_cuda_engine(f.read())
         self.trt_context = engine.create_execution_context()
 
+        self.stream = trt_utils.cuda_call(cudart.cudaStreamCreate())
+
         # Allocate memory for inputs and outputs
         # Define input and output specifications
         self.input_specs = []
         self.output_specs = []
-        self.allocations = []
-        for i in range(engine.num_bindings):
-            is_input = False
+        self.bindings = []
+        for i in range(engine.num_io_tensors):
             name = engine.get_tensor_name(i)
-            is_input = engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT
-            dtype = engine.get_tensor_dtype(name)
+            dtype = np.dtype(trt.nptype(engine.get_tensor_dtype(name)))
             shape = engine.get_tensor_shape(name)
-            size = np.dtype(trt.nptype(dtype)).itemsize
-            for s in shape:
-                size *= s
-            allocation = trt_utils.cuda_call(cudart.cudaMalloc(size))
+            size = trt.volume(shape)
+            if engine.has_implicit_batch_dimension:
+                size *= engine.max_batch_size
+
+            memory = trt_utils.HostDeviceMemory(size, dtype)
+            self.bindings.append((memory.device))
             binding = {
                 "index": i,
                 "name": name,
-                "dtype": np.dtype(trt.nptype(dtype)),
+                "dtype": dtype,
                 "shape": list(shape),
-                "allocation": allocation,
                 "size": size,
+                "memory": memory,
             }
-            self.allocations.append(allocation)
-            if is_input:
-                self.batch_size = shape[0]
+            if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
                 self.input_specs.append(binding)
             else:
                 self.output_specs.append(binding)
@@ -80,30 +80,45 @@ class CVNodeTensorRTBase(BaseCVNode):
         List[np.ndarray]
            Inference results.
         """
-        predictions = []
-        for output_spec in self.output_specs:
-            shape, dtype = output_spec["shape"], output_spec["dtype"]
-            predictions.append(np.zeros(shape, dtype))
+        for data, input_buffer in zip(X, self.input_specs):
+            np.copyto(input_buffer["memory"].host, data.flat)
 
-        # Move input data to device
-        for x, input_spec in zip(X, self.input_specs):
-            trt_utils.memcpy_host_to_device(
-                input_spec["allocation"], np.ascontiguousarray(x)
+        for inp in self.input_specs:
+            trt_utils.cuda_call(
+                cudart.cudaMemcpyAsync(
+                    inp["memory"].device,
+                    inp["memory"].host,
+                    inp["memory"].nbytes,
+                    cudart.cudaMemcpyKind.cudaMemcpyHostToDevice,
+                    self.stream,
+                )
             )
 
-        # Run inference
-        self.trt_context.execute_v2(self.allocations)
+        self.trt_context.execute_async_v2(
+            bindings=self.bindings, stream_handle=self.stream
+        )
 
-        # Move output data to host
-        for i, output in enumerate(predictions):
-            trt_utils.memcpy_device_to_host(
-                output, self.output_specs[i]["allocation"]
+        for out in self.output_specs:
+            trt_utils.cuda_call(
+                cudart.cudaMemcpyAsync(
+                    out["memory"].host,
+                    out["memory"].device,
+                    out["memory"].nbytes,
+                    cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost,
+                    self.stream,
+                )
             )
 
-        return predictions
+        trt_utils.cuda_call(cudart.cudaStreamSynchronize(self.stream))
+        return [
+            out["memory"].host.reshape(out["shape"])
+            for out in self.output_specs
+        ]
 
     def cleanup(self):
+        trt_utils.cuda_call(cudart.cudaStreamDestroy(self.stream))
+        for buffer in self.input_specs + self.output_specs:
+            buffer["memory"].free()
         del self.trt_context
-        for allocation in self.allocations:
-            trt_utils.cuda_call(cudart.cudaFree(allocation))
+        del self.stream
         trt_utils.cuda_call(cudart.cudaDeviceReset())

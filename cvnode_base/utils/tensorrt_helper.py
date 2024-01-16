@@ -4,6 +4,7 @@
 
 """Contains utility functions to work with TensorRT."""
 
+import ctypes
 from typing import Any, Callable, Union
 
 import numpy as np
@@ -56,45 +57,66 @@ def cuda_call(call: Callable) -> Any:
     return res
 
 
-def memcpy_host_to_device(dst_ptr: int, src_arr: np.ndarray):
+class HostDeviceMemory:
     """
-    Copies data from host to device.
+    Class representing a pair of host and device memory with the same size and
+    data type.
 
     Parameters
     ----------
-    dst_ptr : int
-        The destination memory pointer.
-    src_arr : np.ndarray
-        The source memory.
+    size : int
+        The size of the memory in elements.
+    dtype : np.dtype
+        The data type of the memory.
     """
-    nbytes = src_arr.size * src_arr.itemsize
-    cuda_call(
-        cudart.cudaMemcpy(
-            dst_ptr,
-            src_arr,
-            nbytes,
-            cudart.cudaMemcpyKind.cudaMemcpyHostToDevice,
+
+    def __init__(self, size: int, dtype: np.dtype):
+        self.nbytes = size * dtype.itemsize
+        host_mem = cuda_call(cudart.cudaMallocHost(self.nbytes))
+        pointer_type = ctypes.POINTER(np.ctypeslib.as_ctypes_type(dtype))
+
+        self._host = np.ctypeslib.as_array(
+            ctypes.cast(host_mem, pointer_type), (size,)
         )
-    )
+        self.device = cuda_call(cudart.cudaMalloc(self.nbytes))
 
+    @property
+    def host(self) -> np.ndarray:
+        """
+        The host memory.
 
-def memcpy_device_to_host(dst_arr: np.ndarray, src_ptr: int):
-    """
-    Copies data from device to host.
+        Returns
+        -------
+        np.ndarray
+            The host memory.
+        """
+        return self._host
 
-    Parameters
-    ----------
-    dst_arr : np.ndarray
-        The destination memory.
-    src_ptr : int
-        The source memory pointer.
-    """
-    nbytes = dst_arr.size * dst_arr.itemsize
-    cuda_call(
-        cudart.cudaMemcpy(
-            dst_arr,
-            src_ptr,
-            nbytes,
-            cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost,
-        )
-    )
+    @host.setter
+    def host(self, arr: np.ndarray):
+        """
+        Sets the host memory.
+
+        Parameters
+        ----------
+        arr : np.ndarray
+            The host memory.
+
+        Raises
+        ------
+        ValueError
+            If the array size is larger than the memory size.
+        """
+        if arr.size > self.host.size:
+            raise ValueError(
+                f"Array size ({arr.size}) is larger than "
+                f"the memory size ({self.host.size})"
+            )
+        np.copyto(self.host[: arr.size], arr.flat, casting="safe")
+
+    def free(self):
+        """
+        Frees the host and device memory.
+        """
+        cuda_call(cudart.cudaFree(self.device))
+        cuda_call(cudart.cudaFreeHost(self.host.ctypes.data))
