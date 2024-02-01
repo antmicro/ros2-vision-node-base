@@ -37,4 +37,4 @@ jobs:
                   password: ${{ github.token }}
             - name: Push image to registry
               if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-              run: docker push ghcr.io/antmicro/ros2-vision-node-base:bision-node-base
+              run: docker push ghcr.io/antmicro/ros2-vision-node-base:vision-node-base
