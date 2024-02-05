@@ -70,12 +70,12 @@ public:
     /**
      * Run inference on input images.
      *
-     * @param X Vector of input images.
+     * @param X Input image.
      *
-     * @return Vector of instance segmentation results.
+     * @return Instance segmentation predictions.
      */
-    std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
-    run_inference(std::vector<sensor_msgs::msg::Image> &X) override;
+    kenning_computer_vision_msgs::msg::SegmentationMsg
+    run_inference(kenning_computer_vision_msgs::msg::VideoFrameMsg &X) override;
 
     /**
      * Preprocess input image for inference.

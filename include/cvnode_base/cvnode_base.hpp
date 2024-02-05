@@ -10,6 +10,7 @@
 #include <string>
 
 #include <kenning_computer_vision_msgs/msg/segmentation_msg.hpp>
+#include <kenning_computer_vision_msgs/msg/video_frame_msg.hpp>
 #include <kenning_computer_vision_msgs/srv/manage_cv_node.hpp>
 #include <kenning_computer_vision_msgs/srv/segment_cv_node_srv.hpp>
 
@@ -107,8 +108,8 @@ public:
      *
      * @return Inference output.
      */
-    virtual std::vector<kenning_computer_vision_msgs::msg::SegmentationMsg>
-    run_inference(std::vector<sensor_msgs::msg::Image> &X) = 0;
+    virtual kenning_computer_vision_msgs::msg::SegmentationMsg
+    run_inference(kenning_computer_vision_msgs::msg::VideoFrameMsg &X) = 0;
 
     /**
      * Cleanup allocated model resources.

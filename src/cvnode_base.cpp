@@ -38,7 +38,7 @@ void BaseCVNode::process_callback(
     SegmentCVNodeSrv::Response::SharedPtr response)
 {
     RCLCPP_DEBUG(get_logger(), "Received request to process input data");
-    response->output = run_inference(request->input);
+    response->segmentation = run_inference(request->input);
     response->success = true;
     RCLCPP_DEBUG(get_logger(), "Processed the input data");
 }

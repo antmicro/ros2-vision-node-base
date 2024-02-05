@@ -19,6 +19,7 @@ namespace cvnode_base
 {
 
 using SegmentationMsg = kenning_computer_vision_msgs::msg::SegmentationMsg;
+using VideoFrameMsg = kenning_computer_vision_msgs::msg::VideoFrameMsg;
 
 MaskRCNNTorchScript::MaskRCNNTorchScript(const rclcpp::NodeOptions &options)
     : BaseCVNode("mask_rcnn_torchscript_node", options)
@@ -84,18 +85,14 @@ bool MaskRCNNTorchScript::prepare()
     return true;
 }
 
-std::vector<SegmentationMsg> MaskRCNNTorchScript::run_inference(std::vector<sensor_msgs::msg::Image> &X)
+SegmentationMsg MaskRCNNTorchScript::run_inference(VideoFrameMsg &X)
 {
-    std::vector<SegmentationMsg> result;
-    for (auto &frame : X)
+    c10::IValue input = preprocess(X.frame);
+    MaskRCNNOutputs prediction = predict(input);
+    SegmentationMsg result = postprocess(prediction, X.frame);
+    if (device.is_cuda())
     {
-        c10::IValue input = preprocess(frame);
-        MaskRCNNOutputs prediction = predict(input);
-        result.push_back(postprocess(prediction, frame));
-        if (device.is_cuda())
-        {
-            c10::cuda::CUDACachingAllocator::emptyCache();
-        }
+        c10::cuda::CUDACachingAllocator::emptyCache();
     }
     return result;
 }
@@ -129,7 +126,6 @@ SegmentationMsg MaskRCNNTorchScript::postprocess(MaskRCNNOutputs &prediction, se
     using MaskMsg = kenning_computer_vision_msgs::msg::MaskMsg;
     using BoxMsg = kenning_computer_vision_msgs::msg::BoxMsg;
     SegmentationMsg msg;
-    msg.frame = frame;
     std::transform(
         prediction.classes.data_ptr<int64_t>(),
         prediction.classes.data_ptr<int64_t>() + prediction.classes.numel(),
