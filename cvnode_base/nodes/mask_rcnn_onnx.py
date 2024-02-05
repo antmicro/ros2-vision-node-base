@@ -33,27 +33,12 @@ class MaskRCNNONNXNode(BaseCVNode):
         self.declare_parameter("model_path", rclpy.Parameter.Type.STRING)
         self.declare_parameter("device", rclpy.Parameter.Type.STRING)
 
-    def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
-        """
-        Run inference on the input data.
-
-        Parameters
-        ----------
-        X : List[Image]
-            List of input image messages.
-
-        Returns
-        -------
-        List[SegmentationMsg]
-            List of postprocessed segmentation messages.
-        """
-        result = []
-        for frame in X:
-            input_data = self.preprocess(frame)
-            prediction = self.predict(input_data)
-            result.append(self.postprocess(prediction, frame))
-            empty_cache()
-        return result
+    def run_inference(self, X):
+        input_data = self.preprocess(X.frame)
+        prediction = self.predict(input_data)
+        result = self.postprocess(prediction, X.frame)
+        empty_cache()
+        return True, result
 
     def prepare(self) -> bool:
         """
@@ -181,7 +166,6 @@ class MaskRCNNONNXNode(BaseCVNode):
             Postprocessed model predictions in the form of SegmentationMsg.
         """
         msg = SegmentationMsg()
-        msg._frame = frame
         boxes, classes, masks, scores = Y[0], Y[1], Y[2].squeeze(), Y[3]
         if masks.ndim == 2:
             masks = np.expand_dims(masks, 0)

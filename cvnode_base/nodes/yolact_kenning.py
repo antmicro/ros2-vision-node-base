@@ -180,33 +180,29 @@ class YOLACTNode(BaseCVNode):
         return self.yolact.prepare()
 
     def run_inference(self, X):
-        result = []
-        for frame in X:
-            x = imageToMat(frame, "rgb8").transpose(2, 0, 1)
-            x = self.yolact.model.preprocess_input([x])
-            self.yolact.runtime.load_input([x])
-            self.yolact.runtime.run()
-            preds = self.yolact.runtime.extract_output()
-            preds = self.yolact.model.postprocess_outputs(preds)
+        x = imageToMat(X.frame, "rgb8").transpose(2, 0, 1)
+        x = self.yolact.model.preprocess_input([x])
+        self.yolact.runtime.load_input([x])
+        self.yolact.runtime.run()
+        preds = self.yolact.runtime.extract_output()
+        preds = self.yolact.model.postprocess_outputs(preds)
 
-            msg = SegmentationMsg()
-            msg._frame = frame
-            if preds:
-                for y in preds[0]:
-                    box = BoxMsg()
-                    box._xmin = float(y.xmin)
-                    box._xmax = float(y.xmax)
-                    box._ymin = float(y.ymin)
-                    box._ymax = float(y.ymax)
-                    msg._boxes.append(box)
-                    msg._scores.append(y.score)
-                    mask = MaskMsg()
-                    mask._data = y.mask.flatten()
-                    mask._dimension = [y.mask.shape[0], y.mask.shape[1]]
-                    msg._masks.append(mask)
-                    msg._classes.append(y.clsname)
-            result.append(msg)
-        return result
+        msg = SegmentationMsg()
+        if preds:
+            for y in preds[0]:
+                box = BoxMsg()
+                box._xmin = float(y.xmin)
+                box._xmax = float(y.xmax)
+                box._ymin = float(y.ymin)
+                box._ymax = float(y.ymax)
+                msg._boxes.append(box)
+                msg._scores.append(y.score)
+                mask = MaskMsg()
+                mask._data = y.mask.flatten()
+                mask._dimension = [y.mask.shape[0], y.mask.shape[1]]
+                msg._masks.append(mask)
+                msg._classes.append(y.clsname)
+        return True, msg
 
     def cleanup(self):
         del self.yolact

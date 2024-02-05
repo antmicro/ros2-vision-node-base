@@ -9,7 +9,7 @@
 import csv
 import os
 from gc import collect
-from typing import Dict, List
+from typing import Dict
 
 import rclpy
 from detectron2 import model_zoo
@@ -35,27 +35,12 @@ class MaskRCNNDetectronNode(BaseCVNode):
         self.declare_parameter("model_path", rclpy.Parameter.Type.STRING)
         self.declare_parameter("num_classes", rclpy.Parameter.Type.INTEGER)
 
-    def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
-        """
-        Run inference on the input data.
-
-        Parameters
-        ----------
-        X : List[Image]
-            List of input image messages.
-
-        Returns
-        -------
-        List[SegmentationMsg]
-            List of postprocessed segmentation messages.
-        """
-        result = []
-        for frame in X:
-            input_data = self.preprocess(frame)
-            prediction = self.predict(input_data)
-            result.append(self.postprocess(prediction, frame))
-            empty_cache()
-        return result
+    def run_inference(self, X):
+        input_data = self.preprocess(X.frame)
+        prediction = self.predict(input_data)
+        result = self.postprocess(prediction, X.frame)
+        empty_cache()
+        return True, result
 
     def prepare(self) -> bool:
         """
@@ -158,7 +143,6 @@ class MaskRCNNDetectronNode(BaseCVNode):
             Postprocessed model predictions in the form of SegmentationMsg.
         """
         msg = SegmentationMsg()
-        msg._frame = frame
         prediction = Y["instances"]
         scores = prediction.scores.cpu().detach().numpy()
 

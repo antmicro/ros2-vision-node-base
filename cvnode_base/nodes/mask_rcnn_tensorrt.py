@@ -28,26 +28,11 @@ class MaskRCNNTensorRTNode(CVNodeTensorRTBase):
         super().__init__(node_name="mask_rcnn_tensorrt_node")
         self.declare_parameter("class_names_path", rclpy.Parameter.Type.STRING)
 
-    def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
-        """
-        Run inference on the input data.
-
-        Parameters
-        ----------
-        X : List[Image]
-            List of input image messages.
-
-        Returns
-        -------
-        List[SegmentationMsg]
-            List of postprocessed segmentation messages.
-        """
-        result = []
-        for frame in X:
-            input_data = self.preprocess(frame)
-            prediction = self.predict(input_data)
-            result.append(self.postprocess(prediction, frame))
-        return result
+    def run_inference(self, X):
+        input_data = self.preprocess(X.frame)
+        prediction = self.predict(input_data)
+        result = self.postprocess(prediction, X.frame)
+        return True, result
 
     def prepare(self) -> bool:
         """
@@ -120,7 +105,6 @@ class MaskRCNNTensorRTNode(CVNodeTensorRTBase):
             Postprocessed model predictions in the form of SegmentationMsg.
         """
         msg = SegmentationMsg()
-        msg._frame = frame
         keep = Y[0].squeeze()
         boxes, classes, masks, scores = (
             Y[1].squeeze()[:keep],

@@ -5,13 +5,12 @@
 """Base class for computer vision nodes."""
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Optional, Tuple
 
-from kenning_computer_vision_msgs.msg import SegmentationMsg
+from kenning_computer_vision_msgs.msg import SegmentationMsg, VideoFrameMsg
 from kenning_computer_vision_msgs.srv import ManageCVNode, SegmentCVNodeSrv
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
-from sensor_msgs.msg import Image
 from std_srvs.srv import Trigger
 
 
@@ -125,19 +124,22 @@ class BaseCVNode(Node, ABC):
         ...
 
     @abstractmethod
-    def run_inference(self, X: List[Image]) -> List[SegmentationMsg]:
+    def run_inference(
+        self, X: VideoFrameMsg
+    ) -> Tuple[bool, Optional[SegmentationMsg]]:
         """
         Run inference on the input data.
 
         Parameters
         ----------
-        X : List[Image]
-            List of input image messages.
+        X : VideoFrameMsg
+            Input data for inference.
 
         Returns
         -------
-        List[SegmentationMsg]
-            List of postprocessed segmentation messages.
+        Tuple[bool, Optional[SegmentationMsg]]
+            Tuple containing success status and segmentation result
+            if successful.
         """
         ...
 
@@ -212,8 +214,9 @@ class BaseCVNode(Node, ABC):
             Processed response for the process service client.
         """
         self.get_logger().debug("Executing inference on input data")
-        response.output = self.run_inference(request.input)
-        response.success = True
+        response.success, segmenation = self.run_inference(request.input)
+        if response.success:
+            response.segmentation = segmenation
         self.get_logger().debug("Inference executed")
         return response
 
