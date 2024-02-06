@@ -165,7 +165,7 @@ class MaskRCNNDetectronNode(BaseCVNode):
         for mask_np in prediction.pred_masks.cpu().detach().numpy():
             mask = MaskMsg()
             mask._dimension = [mask_np.shape[0], mask_np.shape[1]]
-            mask._data = mask_np.flatten().astype("uint8")
+            mask._data = (mask_np * 255).flatten().astype("uint8")
             msg._masks.append(mask)
 
         boxes = prediction.pred_boxes.tensor

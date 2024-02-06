@@ -208,7 +208,7 @@ class MaskRCNNONNXNode(BaseCVNode):
         for mask_np in masks:
             mask = MaskMsg()
             mask._dimension = [mask_np.shape[0], mask_np.shape[1]]
-            mask._data = mask_np.flatten().astype("uint8")
+            mask._data = (mask_np * 255).flatten().astype("uint8")
             msg._masks.append(mask)
 
         msg._classes = [self.classes[int(x)] for x in classes]
