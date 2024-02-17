@@ -7,7 +7,9 @@
             "dataset_root": "./build/dataset",
             "download_dataset": false,
             "split_fraction_test": 1.0,
-            "split_seed": 42
+            "split_seed": 42,
+            "inference_batch_size": 10,
+            "task": "instance_segmentation"
         }
     },
     "runtime":
