@@ -6,6 +6,8 @@
 
 # This script builds the Docker container for ROS 2 based vision nodes development.
 
+set -e
+
 DOCKER_TAG=${DOCKER_TAG:-ghcr.io/antmicro/ros2-vision-node-base:vision-node-base}
 
 SCRIPTDIR=$(dirname "$(realpath "$0")")
