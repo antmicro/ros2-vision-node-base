@@ -8,7 +8,7 @@
 
 set -e
 
-DOCKER_TAG=${DOCKER_TAG:-ghcr.io/antmicro/ros2-vision-node-base:vision-node-base}
+DOCKER_TAG=${DOCKER_TAG:-ros2-vision-node-base}
 
 SCRIPTDIR=$(dirname "$(realpath "$0")")
 

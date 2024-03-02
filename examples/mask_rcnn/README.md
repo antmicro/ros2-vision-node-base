@@ -27,13 +27,7 @@ The image contains:
 * CUDNN and CUDA libraries for faster acceleration on GPUs
 * Additional development tools
 
-Docker image can be pulled from the Docker registry using:
-
-```bash
-docker pull ghcr.io/antmicro/ros2-vision-node-base:vision-node-base
-```
-
-Alternatively, the image can be built manually with [build-docker.sh](./build-docker.sh) script:
+Docker image containing all necessary dependencies can be built with:
 
 ```bash
 sudo ./build-docker.sh

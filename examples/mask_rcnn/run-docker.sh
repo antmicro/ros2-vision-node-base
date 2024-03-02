@@ -8,7 +8,7 @@
 
 set -e
 
-DOCKER_IMAGE=${DOCKER_IMAGE:-ghcr.io/antmicro/ros2-vision-node-base:vision-node-base}
+DOCKER_IMAGE=${DOCKER_IMAGE:-ros2-vision-node-base}
 
 docker run -it \
     -v "$(pwd)":/data \
