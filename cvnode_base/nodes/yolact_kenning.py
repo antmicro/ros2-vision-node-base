@@ -47,7 +47,7 @@ class YOLACTOnnx:
         if not model_path.exists():
             self.node.get_logger().error(f"File {model_path} does not exist")
             return False
-        self.model = YOLACT(model_path, None)
+        self.model = YOLACT(model_path, None, top_k=100, score_threshold=0.3)
 
         device = self.node.get_parameter("device").value
         if not device:
@@ -108,7 +108,7 @@ class YOLACTTVM:
                 "Please specify device for TVM runtime"
             )
             return False
-        self.model = YOLACT(model_path, None)
+        self.model = YOLACT(model_path, None, top_k=100, score_threshold=0.3)
         self.runtime = TVMRuntime(
             model_path,
             contextname=device,
@@ -146,7 +146,7 @@ class YOLACTTFLite:
         if not model_path.exists():
             self.node.get_logger().error(f"File {model_path} does not exist")
             return False
-        self.model = YOLACT(model_path, None)
+        self.model = YOLACT(model_path, None, top_k=100, score_threshold=0.3)
         self.runtime = TFLiteRuntime(
             model_path, disable_performance_measurements=True
         )
