@@ -58,7 +58,7 @@ class YOLACTOnnx:
         if device == "cpu":
             execution_providers = ["CPUExecutionProvider"]
         elif device == "cuda":
-            execution_providers = ["GPUExecutionProvider"]
+            execution_providers = ["CUDAExecutionProvider"]
         else:
             self.node.get_logger().error(
                 f"Device {device} is not supported by ONNX runtime"
