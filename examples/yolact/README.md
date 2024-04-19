@@ -1,12 +1,12 @@
 # Instance segmentation inference YOLACT
 
-This demo runs an instance segmentation model YOLACT on sequences from [LindenthalCameraTraps](https://lila.science/datasets/lindenthal-camera-traps/) dataset.
+This demo runs the YOLACT instance segmentation model on sequences from the [LindenthalCameraTraps](https://lila.science/datasets/lindenthal-camera-traps/) dataset.
 The demo consists of four parts:
 
 * `CVNodeManager` - manages testing scenario and data flow between dataprovider and tested CVNode.
-* `CVNodeManagerGUI` - visualizes the input data and results of the inference testing.
-* `Kenning` - provides sequences from LindenthalCameraTraps dataset and collects inference results.
-* `CVNode` - runs inference on the input images and returns the results.
+* `CVNodeManagerGUI` - visualizes input data and results of inference testing.
+* `Kenning` - provides sequences from the LindenthalCameraTraps dataset and collects inference results.
+* `CVNode` - runs inference on input images and returns results.
 
 ## Dependencies
 
@@ -111,7 +111,7 @@ kenning report --measurements \
 
 ## Building the demo
 
-First of all, load the `setup.sh` script for ROS 2 tools, e.g.:
+First, load the `setup.sh` script for ROS 2 tools, e.g.:
 
 ```bash
 source /opt/ros/setup.sh
@@ -127,7 +127,7 @@ colcon build --base-path=src/ --packages-select \
     --cmake-args ' -DBUILD_GUI=ON' ' -DBUILD_YOLACT=ON'
 ```
 
-Where the `--cmake-args` are:
+Here, the `--cmake-args` are:
 
 * `-DBUILD_GUI=ON` - builds the GUI for CVNodeManager
 * `-DBUILD_YOLACT=ON` - builds the YOLACT CVNodes
@@ -140,11 +140,11 @@ source install/setup.sh
 
 ## Running the demo
 
-This example provides a single launch scripts for running the demo:
+This example provides a single launch script for running the demo:
 
-* `yolact_launch.py` - starts provided executable as CVNode along with other nodes
+* `yolact_launch.py` - starts the provided executable as CVNode along with other nodes.
 
-A sample launch with the TFLite backend can be run with:
+Run a sample launch with the TFLite backend using:
 
 ```bash
 ros2 launch cvnode_base yolact_launch.py \
@@ -156,7 +156,7 @@ ros2 launch cvnode_base yolact_launch.py \
     log_level:=INFO
 ```
 
-Where the parameters are:
+Here, the parameters are:
 
 * `tflite` - backend to use, one of:
     * `tflite` - TFLite backend
@@ -164,15 +164,15 @@ Where the parameters are:
     * `onnxruntime` - ONNXRuntime backend
 * `model_path` - path to the model file.
 Make sure to have IO specification placed alongside the model file with the same name and `.json` extension.
-* `scenario` - scenario to run the demo in, one of:
+* `scenario` - scenario for running the demo, one of:
     * `real_world_last` - tries to process last received frame within timeout
     * `real_world_first` - tries to process first received frame
     * `synthetic` - ignores timeout and processes frames as fast as possible
-* `measurements` - path to the file where inference measurements will be stored
-* `report_path` - path to the file where the rendered report will be stored
+* `measurements` - path to file where inference measurements will be stored
+* `report_path` - path to file where the rendered report will be stored
 * `log_level` - log level for running the demo
 
-Later, produced reports can be found under `/data/build/reports` directory.
+The produced reports can later be found in the `/data/build/reports` directory.
 
 This demo supports TFLite, TVM and ONNX backends.
 For more information on how to export model for these backends, see [Kenning documentation](https://antmicro.github.io/kenning/json-scenarios.html).
