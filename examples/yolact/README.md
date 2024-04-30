@@ -15,6 +15,100 @@ This demo requires the following dependencies:
 * [KenningComputerVisionMessages](https://github.com/antmicro/ros2-kenning-computer-vision-msgs)
 * [Kenning](https://github.com/antnmicro/kenning)
 
+## Quickstart
+
+Since setting up a whole environment for ROS 2 and Kenning can be time-consuming, we will use the ready Docker image with ROS 2 and minimal Kenning dependencies.
+
+
+First of, create an empty workspace directory (source files for the project, virtual environment and `repo` tool configuration will be placed here), download the [`demo-helper` script](https://raw.githubusercontent.com/antmicro/ros2-vision-node-base/main/examples/demo-helper) and run it:
+
+```bash
+mkdir workspace && cd workspace
+wget https://raw.githubusercontent.com/antmicro/ros2-vision-node-base/main/examples/demo-helper
+chmod +x ./demo-helper
+./demo-helper prepare-workspace
+```
+
+This will:
+
+* Pull a Docker image with ROS 2 and basic Kenning dependencies - the image is provided in [ros2-gui-node repository Dockerfile](https://github.com/antmicro/ros2-gui-node/blob/main/examples/kenning-instance-segmentation/Dockerfile) and available under `ghcr.io/antmicro/ros2-gui-node:kenning-ros2-demo`.
+* In Docker container, it will:
+    * Load ROS 2 workspace
+    * Clone necessary repositories for demo purposes
+    * Install Kenning with its dependencies for optimization, inference and reports
+    * Build the ROS 2 Vision node project for YOLACT instance segmentation model, as well as its dependencies
+
+Secondly, enter the Docker container with:
+
+```bash
+./demo-helper enter-docker
+```
+
+and (in the Docker container):
+
+```bash
+./demo-helper source-workspace
+```
+
+From this point, we can run ROS 2 node running YOLACT edge detection in various implementations.
+The easiest option is to just run the model using ONNX Runtime on CPU with:
+
+```bash
+ros2 launch cvnode_base yolact_kenning_launch.py \
+    backend:=onnxruntime \
+    model_path:=./models/yolact-lindenthal.onnx \
+    measurements:=onnxruntime.json \
+    report_path:=onnxruntime/report.md
+```
+
+What we can do next is we can specify the scenario to be based on real time:
+
+```bash
+ros2 launch cvnode_base yolact_kenning_launch.py \
+    backend:=onnxruntime \
+    model_path:=./models/yolact-lindenthal.onnx \
+    measurements:=onnxruntime-rt.json \
+    report_path:=onnxruntime-rt/report.md \
+    scenario:=real_world_first
+```
+
+The framerate can be controlled with `inference_timeout_ms:=<val>`.
+For more options, check:
+
+```bash
+ros2 launch cvnode_base yolact_kenning_launch.py --show-args
+```
+
+To use another runtime, e.g. TVM, first compile the model:
+
+```bash
+kenning optimize --json-cfg ./src/vision_node_base/examples/config/yolact-tvm-lindenthal.json
+```
+
+The compiled model is available under `build/yolact.so`.
+
+After compiling, run the model with:
+
+```bash
+ros2 launch cvnode_base yolact_kenning_launch.py \
+    backend:=tvm \
+    model_path:=./build/yolact.so \
+    measurements:=tvm.json \
+    report_path:=tvm/report.md
+```
+
+In the end, we can build the comparison report for various runtimes and time constraints, e.g.:
+
+```bash
+kenning report --measurements \
+	onnxruntime.json \
+	tvm.json \
+	--report-name "YOLACT comparison report" \
+	--report-path comparison-result/yolact/report.md \
+	--report-types performance detection \
+	--to-html comparison-result-html
+```
+
 ## Building the demo
 
 First of all, load the `setup.sh` script for ROS 2 tools, e.g.:
