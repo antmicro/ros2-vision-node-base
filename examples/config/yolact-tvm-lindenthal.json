@@ -1,0 +1,37 @@
+{
+    "model_wrapper":
+    {
+        "type": "kenning.modelwrappers.instance_segmentation.yolact.YOLACT",
+        "parameters":
+        {
+            "model_path": "kenning:///models/instance_segmentation/yolact-lindenthal.onnx"
+        }
+    },
+    "dataset":
+    {
+        "type": "kenning.datasets.lindenthal_camera_traps_dataset.LindenthalCameraTrapsDataset",
+        "parameters":
+        {
+            "dataset_root": "./build/LindenthalDatasetDemo",
+            "inference_batch_size": 1,
+            "use_demonstration_dataset": true,
+            "task": "instance_segmentation"
+        }
+    },
+    "optimizers":
+    [
+        {
+            "type": "kenning.optimizers.tvm.TVMCompiler",
+            "parameters":
+            {
+                "model_framework": "onnx",
+                "target": "llvm -mcpu=core-avx2",
+                "opt_level": 3,
+                "compile_use_vm": false,
+                "output_conversion_function": "default",
+                "target_host": null,
+                "compiled_model_path": "./build/yolact.so"
+            }
+        }
+    ]
+}
