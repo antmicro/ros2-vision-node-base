@@ -4,7 +4,7 @@
 
     <project name="ros2-gui-node.git" remote="origin" revision="main" path="src/gui_node" sync-s="true"/>
     <project name="ros2-kenning-computer-vision-msgs.git" remote="origin" revision="main" path="src/computer_vision_msgs"/>
-    <project name="ros2-vision-node-base.git" remote="origin" revision="main" path="src/cvnode_base"/>
-    <project name="ros2-vision-node-manager.git" remote="origin" revision="main" path="src/cvnode_manager"/>
+    <project name="ros2-vision-node-base.git" remote="origin" revision="main" path="src/vision_node_base"/>
+    <project name="ros2-vision-node-manager.git" remote="origin" revision="main" path="src/vision_node_manager"/>
     <project name="kenning.git" remote="origin" revision="main" path="kenning"/>
 </manifest>
