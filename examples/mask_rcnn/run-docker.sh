@@ -11,7 +11,8 @@ set -e
 DOCKER_IMAGE=${DOCKER_IMAGE:-ros2-vision-node-base}
 
 docker run -it \
-    -v "$(pwd)":/data \
+    -v "$(pwd)":"$(pwd)" \
+    -w "$(pwd)" \
     -v /tmp/.X11-unix/:/tmp/.X11-unix/ \
     --gpus='all,"capabilities=compute,utility,graphics,display"' \
     -e DISPLAY="$DISPLAY" \
