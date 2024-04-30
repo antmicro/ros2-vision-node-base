@@ -1,0 +1,33 @@
+{
+    "dataset":
+    {
+        "type": "kenning.datasets.lindenthal_camera_traps_dataset.LindenthalCameraTrapsDataset",
+        "parameters":
+        {
+            "dataset_root": "./build/LindenthalDatasetDemo",
+            "split_fraction_test": 1.0,
+            "use_demonstration_dataset": true,
+            "task": "instance_segmentation"
+        }
+    },
+    "runtime":
+    {
+        "type": "cvnode_base.runtimes.runtime.CVNodeRuntime",
+        "parameters": {},
+        "data_converter":
+        {
+            "type": "kenning.dataconverters.ros2_segmentation_dataconverter.ROS2SegmentationDataConverter",
+            "parameters": {}
+        }
+    },
+    "protocol":
+    {
+        "type": "kenning.protocols.ros2.ROS2Protocol",
+        "parameters":
+        {
+            "node_name": "kenning_dataprovider",
+            "process_action_type_str": "kenning_computer_vision_msgs.action.SegmentationAction",
+            "process_action_name": "cvnode_process"
+        }
+    }
+}
