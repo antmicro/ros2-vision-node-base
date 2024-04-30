@@ -63,13 +63,6 @@ def common_parameters() -> (
             description="Path to rendered inference report to store",
         )
     )
-    obligatory.append(
-        DeclareLaunchArgument(
-            "inference_configuration",
-            description="Path to Kenning's JSON configuration file "
-            "with dataset, runtime and protocol specified",
-        ),
-    )
 
     # Optional arguments
     optional = {}
@@ -91,20 +84,33 @@ def common_parameters() -> (
         ),
     )
 
+    optional["inference_configuration"] = (
+        LaunchConfiguration(
+            "inference_configuration",
+            default="./src/vision_node_base/examples/config/lindenthal_camera_traps_demo_inference.json",  # noqa: E501
+        ),
+        DeclareLaunchArgument(
+            "inference_configuration",
+            description="Path to Kenning's JSON configuration file "
+            "with dataset, runtime and protocol specified",
+            default_value="./src/vision_node_base/examples/config/lindenthal_camera_traps_demo_inference.json",  # noqa: E501
+        ),
+    )
+
     optional["inference_timeout_ms"] = (
-        LaunchConfiguration("inference_timeout_ms", default="300"),
+        LaunchConfiguration("inference_timeout_ms", default="50"),
         DeclareLaunchArgument(
             "inference_timeout_ms",
             description="Inference timeout in milliseconds used by real_world_* scenarios",  # noqa: E501
-            default_value="300",
+            default_value="50",
         ),
     )
 
     optional["preserve_output"] = (
-        LaunchConfiguration("preserve_output", default="False"),
+        LaunchConfiguration("preserve_output", default="True"),
         DeclareLaunchArgument(
             "preserve_output",
-            default_value="False",
+            default_value="True",
             description="Indicates whether manager should preserve current "
             "frame output. Useful for real_world_* scenarios when frame "
             "inference is timeouted, so previous frame output is used",
@@ -124,11 +130,11 @@ def common_parameters() -> (
     )
 
     optional["device"] = (
-        LaunchConfiguration("device", default="cuda"),
+        LaunchConfiguration("device", default="cpu"),
         DeclareLaunchArgument(
             "device",
             description="Device to inference model on",
-            default_value="cuda",
+            default_value="cpu",
             choices=["cuda", "cpu"],
         ),
     )
@@ -209,7 +215,9 @@ def cvnode_manager_node(
 
 
 def kenning_test_report_node(
-    log_level: LaunchConfiguration, node_name: str = "kenning_node"
+    log_level: LaunchConfiguration,
+    inference_configuration: LaunchConfiguration,
+    node_name: str = "kenning_node",
 ) -> ExecuteProcess:
     """
     Creates a launch action for kenning test report node.
@@ -218,6 +226,8 @@ def kenning_test_report_node(
     ----------
     log_level : LaunchConfiguration
         Logging level.
+    inference_configuration: LaunchConfiguration
+        Used inference test scenario for Kenning
     node_name : str
         Name of the node.
 
@@ -232,7 +242,7 @@ def kenning_test_report_node(
             [
                 "python -m kenning test report ",
                 "--json-cfg ",
-                LaunchConfiguration("inference_configuration"),
+                inference_configuration,
                 " --measurements ",
                 LaunchConfiguration("measurements"),
                 " --verbosity ",
