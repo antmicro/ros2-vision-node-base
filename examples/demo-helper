@@ -1,0 +1,129 @@
+#!/bin/bash
+
+# Copyright (c) 2023-2024 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# A script that prepares Docker-based environment for building and running
+# examples for ros2-vision-node-base
+
+# Fail on any errors
+set -eo pipefail
+
+SCRIPT_PATH=$(realpath $0)
+ROOT_DIR=$(dirname $SCRIPT_PATH)
+DOCKER_IMAGE=${DOCKER_IMAGE:-ghcr.io/antmicro/ros2-gui-node:kenning-ros2-demo}
+
+# repo tool requires git user to be available to clone repositories
+if [ -f ~/.gitconfig ]; then
+    GITCONFIG_PATH=~/.gitconfig
+else
+    GITCONFIG_PATH=/etc/gitconfig
+fi
+
+prepare_ros2() {
+    # Loads ROS 2 environment
+    source /opt/ros/setup.sh
+}
+
+prepare_repositories() {
+    # Clones repository for examples
+    echo "Repositories: cloning..."
+    repo init -u https://github.com/antmicro/ros2-vision-node-base.git -m examples/manifest.xml -b 58168-lindenthal-demo
+    repo sync -j`nproc`
+    echo "Repositories: cloned."
+}
+
+prepare_venv() {
+    # Creates venv for Docker image with Kenning dependencies
+    echo "Virtual environment: preparing..."
+    python -m venv --system-site-packages venv
+    source venv/bin/activate
+    pip3 install -e "./kenning[tensorflow,object_detection,reports,onnx,docs,tflite,tvm,onnxruntime]"
+    # Remove opencv-python installed during Kenning installation - system version is properly linked
+    pip3 uninstall -y opencv-python
+    echo "Virtual environment: prepared."
+}
+
+build_project() {
+    # Builds the project for vision node examples
+    echo "Vision node demo: building..."
+    colcon build --base-path=src/ --packages-select kenning_computer_vision_msgs cvnode_base cvnode_manager --cmake-args ' -DBUILD_GUI=ON' ' -DBUILD_YOLACT=ON'
+    source install/setup.sh
+    echo "Vision node demo: built."
+}
+
+run_docker() {
+    # Runs specified Docker image
+    xhost +local:
+    docker run \
+        -it \
+        -v "$(pwd)":"$(pwd)" \
+        -w "$(pwd)" \
+        --net=host \
+        --ipc=host \
+        --gpus='all,"capabilities=compute,utility,graphics,display"' \
+        -v /tmp/.X11-unix/:/tmp/.X11-unix/ \
+        -v $GITCONFIG_PATH:/root/.gitconfig \
+        -e DISPLAY=$DISPLAY \
+        -e QT_X11_NO_MITSHM=1 \
+        -e XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+        "$DOCKER_IMAGE" \
+        $@
+}
+
+download_models() {
+    mkdir -p models
+    wget -P models/ https://dl.antmicro.com/kenning/models/instance_segmentation/yolact-lindenthal.onnx
+    wget -P models/ https://dl.antmicro.com/kenning/models/instance_segmentation/yolact-lindenthal.onnx.json
+}
+
+prepare_workspace() {
+    # Pulls the Docker image and builds the entire workspace for testing
+    echo "Pulling Docker image:  $DOCKER_IMAGE..."
+    docker pull $DOCKER_IMAGE
+    echo "Docker image pulled."
+    run_docker $SCRIPT_PATH prepare-docker-full
+}
+
+case $1 in
+    prepare-workspace)
+        prepare_workspace
+        ;;
+    prepare-docker-full)
+        prepare_ros2
+        prepare_repositories
+        prepare_venv
+        download_models
+        build_project
+        echo "Successfully built the project"
+        ;;
+    prepare-ros2-environment)
+        prepare_ros2
+        ;;
+    prepare-repositories)
+        prepare_repositories
+        ;;
+    prepare-venv)
+        prepare_venv
+        ;;
+    build)
+        build_project
+        ;;
+    enter-docker)
+        run_docker /bin/bash
+        ;;
+    download-models)
+        download_models
+        ;;
+    source-workspace)
+        set +eo pipefail
+        prepare_ros2
+        source ./venv/bin/activate
+        source ./install/setup.sh
+        ;;
+    run-yolact-eval)
+        echo "Running Docker container:  $DOCKER_IMAGE..."
+        ;;
+esac
+
