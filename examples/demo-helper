@@ -29,7 +29,7 @@ prepare_ros2() {
 prepare_repositories() {
     # Clones repository for examples
     echo "Repositories: cloning..."
-    repo init -u https://github.com/antmicro/ros2-vision-node-base.git -m examples/manifest.xml -b 58168-lindenthal-demo
+    repo init -u https://github.com/antmicro/ros2-vision-node-base.git -m examples/manifest.xml
     repo sync -j`nproc`
     echo "Repositories: cloned."
 }
