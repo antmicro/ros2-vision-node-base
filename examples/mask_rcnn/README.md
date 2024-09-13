@@ -46,7 +46,7 @@ mkdir cvnode && cd cvnode
 Download all dependencies using the `repo` tool:
 
 ```bash
-repo init -u https://github.com/antmicro/ros2-vision-node-base.git -m examples/mask_rcnn/manifest.xml -b main
+repo init -u https://github.com/antmicro/ros2-vision-node-base.git -m examples/manifest.xml -b main
 
 repo sync -j`nproc`
 ```
