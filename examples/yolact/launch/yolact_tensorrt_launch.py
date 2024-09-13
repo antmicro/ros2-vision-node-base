@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Launches YOLACT node with TensorRT backend."""
+"""Launches YOLACT CVNode with TensorRT backend."""
 
 from launch import LaunchDescription
 from launch.actions import (
@@ -41,6 +41,9 @@ def generate_launch_description() -> LaunchDescription:
 
     # Arguments with default values
     scenario, scenario_arg = optional_args["scenario"]
+    inference_configuration, inference_configuration_arg = optional_args[
+        "inference_configuration"
+    ]
     inference_timeout_ms, timeout_arg = optional_args["inference_timeout_ms"]
     preserve_output, preserve_arg = optional_args["preserve_output"]
     publish_visualizations, gui_arg = optional_args["publish_visualizations"]
@@ -49,6 +52,7 @@ def generate_launch_description() -> LaunchDescription:
     args.extend(
         [
             scenario_arg,
+            inference_configuration_arg,
             timeout_arg,
             preserve_arg,
             gui_arg,
@@ -69,7 +73,7 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
-    kenning_node = kenning_test_report_node(log_level)
+    kenning_node = kenning_test_report_node(log_level, inference_configuration)
     gui_node = cvnode_manager_gui_node(log_level)
     manager_node = cvnode_manager_node(
         log_level=log_level,
