@@ -181,15 +181,15 @@ class YOLACTNode(BaseCVNode):
 
     def run_inference(self, X):
         x = imageToMat(X.frame, "rgb8").transpose(2, 0, 1)
-        x = self.yolact.model.preprocess_input([x])
-        self.yolact.runtime.load_input([x])
+        x = self.yolact.model.preprocess_input([[x]])
+        self.yolact.runtime.load_input(x)
         self.yolact.runtime.run()
         preds = self.yolact.runtime.extract_output()
         preds = self.yolact.model.postprocess_outputs(preds)
 
         msg = SegmentationMsg()
         if preds:
-            for y in preds[0]:
+            for y in preds[0][0]:
                 box = BoxMsg()
                 box._xmin = float(y.xmin)
                 box._xmax = float(y.xmax)

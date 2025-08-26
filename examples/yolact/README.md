@@ -57,7 +57,7 @@ to force running demo with CPU inference.
 and (in the Docker container):
 
 ```bash
-./demo-helper source-workspace
+source ./demo-helper source-workspace
 ```
 
 From this point, we can run ROS 2 node running YOLACT edge detection in various implementations.

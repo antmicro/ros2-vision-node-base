@@ -39,7 +39,7 @@ prepare_venv() {
     echo "Virtual environment: preparing..."
     python -m venv --system-site-packages venv
     source venv/bin/activate
-    pip3 install -e "./kenning"
+    pip3 install -e "./kenning[tensorflow,object_detection,reports,onnx,docs,tflite,tvm,onnxruntime]"
     # Remove opencv-python installed during Kenning installation - system version is properly linked
     pip3 uninstall -y opencv-python
     echo "Virtual environment: prepared."
