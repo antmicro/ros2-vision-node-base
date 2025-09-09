@@ -44,6 +44,16 @@ Secondly, enter the Docker container with:
 ./demo-helper enter-docker
 ```
 
+Command checks for CUDA-capable GPU.
+If no such device is present, it will use CPU for inference.
+You can also type:
+
+```bash
+export USE_CPU="1"
+```
+
+to force running demo with CPU inference.
+
 and (in the Docker container):
 
 ```bash
@@ -142,12 +152,12 @@ source install/setup.sh
 
 This example provides a single launch script for running the demo:
 
-* `yolact_launch.py` - starts the provided executable as CVNode along with other nodes.
+* `yolact_kenning_launch.py` - starts the provided executable as CVNode along with other nodes.
 
 Run a sample launch with the TFLite backend using:
 
 ```bash
-ros2 launch cvnode_base yolact_launch.py \
+ros2 launch cvnode_base yolact_kenning_launch.py \
     backend:=tflite \
     model_path:=/data/model.tflite \
     scenario:=synthetic \
