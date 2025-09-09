@@ -39,7 +39,7 @@ prepare_venv() {
     echo "Virtual environment: preparing..."
     python -m venv --system-site-packages venv
     source venv/bin/activate
-    pip3 install -e "./kenning[tensorflow,object_detection,reports,onnx,docs,tflite,tvm,onnxruntime]"
+    pip3 install -e "./kenning"
     # Remove opencv-python installed during Kenning installation - system version is properly linked
     pip3 uninstall -y opencv-python
     echo "Virtual environment: prepared."
@@ -55,14 +55,32 @@ build_project() {
 
 run_docker() {
     # Runs specified Docker image
+
+    GPU_OPT=--gpus='all,"capabilities=compute,utility,graphics,display"'
+
+    if ! command -v nvidia-smi >/dev/null 2>&1
+    then
+        echo "Nvidia GPU not found, using CPU"
+        GPU_OPT=""
+
+        USE_CPU="1"
+    fi
+
+
+    if [[ -v USE_CPU ]]; then
+        GPU_OPT=""
+        echo "Example will run on CPU"
+    fi
+
     xhost +local:
     docker run \
         -it \
+        --privileged \
         -v "$(pwd)":"$(pwd)" \
         -w "$(pwd)" \
         --net=host \
         --ipc=host \
-        --gpus='all,"capabilities=compute,utility,graphics,display"' \
+        $GPU_OPT \
         -v /tmp/.X11-unix/:/tmp/.X11-unix/ \
         -v $GITCONFIG_PATH:/root/.gitconfig \
         -e DISPLAY=$DISPLAY \
