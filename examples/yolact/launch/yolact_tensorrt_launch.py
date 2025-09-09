@@ -8,6 +8,7 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     SetEnvironmentVariable,
+    Shutdown
 )
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -15,8 +16,7 @@ from launch_ros.actions import Node
 from cvnode_base.utils.launch_helper import (
     common_parameters,
     cvnode_manager_gui_node,
-    cvnode_manager_node,
-    kenning_test_report_node,
+    cvnode_manager_node
 )
 
 
@@ -73,7 +73,22 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
-    kenning_node = kenning_test_report_node(log_level, inference_configuration)
+    kenning_node = Node(
+        executable="kenning",
+        name="kenning_node",
+        arguments=["ros","test","report","--verbosity",log_level,"--ros-args","--log-level",log_level],
+        parameters=[
+            {
+                "config_file":inference_configuration,
+                "measurements":LaunchConfiguration("measurements"),
+                "report_types": ["detection"],
+                "report_path": LaunchConfiguration("report_path"),
+                "to_html":"True"
+            }
+        ],
+        on_exit=Shutdown(),
+    )
+
     gui_node = cvnode_manager_gui_node(log_level)
     manager_node = cvnode_manager_node(
         log_level=log_level,
