@@ -56,6 +56,15 @@ to force running demo with CPU inference.
 
 and (in the Docker container):
 
+If you are using CPU inference, run:
+
+```bash
+pip install --force-reinstall apache-tvm
+ldconfig
+```
+
+And update the workspace environment:
+
 ```bash
 source ./demo-helper source-workspace
 ```
